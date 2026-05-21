@@ -152,6 +152,13 @@ tr:hover td{background:rgba(255,255,255,.025)}
 .b-unscheduled{background:rgba(68,76,86,.4);color:#8b949e;border:1px dashed #444c56}
 .b-tile{background:rgba(88,166,255,.1);color:#58a6ff;border:1px solid rgba(88,166,255,.3);font-size:9px;margin-left:4px}
 
+/* ── DONE ROWS ── */
+.done-cell{width:32px;text-align:center;padding:4px 8px}
+.done-cb{width:15px;height:15px;cursor:pointer;accent-color:var(--success)}
+tr.row-done td{opacity:.4;text-decoration:line-through}
+tr.row-done .done-cell{text-decoration:none}
+tr.row-done td.done-cell{opacity:1}
+
 /* ── PAGINATION ── */
 .pager{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
 .pager-btns{display:flex;gap:4px}
@@ -419,6 +426,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
       <table>
         <thead>
           <tr>
+            <th class="done-cell" title="Mark complete">✓</th>
             <th onclick="sortTable('orderNumber')">Order # <span class="sort-ind" id="si-orderNumber"></span></th>
             <th onclick="sortTable('customerName')">Customer <span class="sort-ind" id="si-customerName"></span></th>
             <th onclick="sortTable('store')">Store <span class="sort-ind" id="si-store"></span></th>
@@ -433,7 +441,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
           </tr>
         </thead>
         <tbody id="table-body">
-          <tr><td colspan="11" class="empty">Load a Constellation export to view jobs</td></tr>
+          <tr><td colspan="12" class="empty">Load a Constellation export to view jobs</td></tr>
         </tbody>
       </table>
     </div>
@@ -510,6 +518,7 @@ const S = {
   charts: {},
   pendingRows: null,
   pendingHeaders: null,
+  completions: new Set(),
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -1146,12 +1155,13 @@ function renderTable() {
   const tbody = document.getElementById('table-body');
 
   if (!pageData.length) {
-    tbody.innerHTML = `<tr><td colspan="11" class="empty">No jobs match the current filters</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" class="empty">No jobs match the current filters</td></tr>`;
   } else {
     tbody.innerHTML = pageData.map(j=>{
       const gpColor = (j.grossProfit||0) < 0 ? 'color:var(--danger)' : (j.grossProfit||0) > 0 ? 'color:var(--success)' : '';
       const marginColor = (j.margin||0) < 0 ? 'color:var(--danger)' : (j.margin||0) < 20 ? 'color:var(--warning)' : 'color:var(--success)';
-      return `<tr>
+      return `<tr data-order="${j.orderNumber}"${S.completions.has(j.orderNumber)?' class="row-done"':''}>
+        <td class="done-cell"><input type="checkbox" class="done-cb"${S.completions.has(j.orderNumber)?' checked':''} onchange="toggleCompletion('${j.orderNumber}')"></td>
         <td ondblclick="showNotes('${j.orderNumber}')" title="Double-click to view notes" style="cursor:pointer"><code style="font-size:11px;color:var(--muted)">${j.orderNumber||'—'}</code></td>
         <td>${j.customerName||'—'}</td>
         <td><strong>${j.store||'—'}</strong></td>
@@ -1238,6 +1248,28 @@ function showUpload() {
   document.getElementById('dashboard').style.display='none';
 }
 function handleFileSelect(e) { if(e.target.files[0]) loadFile(e.target.files[0]); }
+// ═══════════════════════════════════════════════════════════
+// COMPLETIONS (Firebase Firestore)
+// ═══════════════════════════════════════════════════════════
+function toggleCompletion(orderNumber) {
+  if (!window._db) return;
+  const ref = window._db.collection('completions').doc(orderNumber);
+  if (S.completions.has(orderNumber)) {
+    ref.delete();
+  } else {
+    ref.set({ completedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  }
+}
+
+function applyCompletions() {
+  document.querySelectorAll('#table-body tr[data-order]').forEach(tr => {
+    const done = S.completions.has(tr.dataset.order);
+    tr.classList.toggle('row-done', done);
+    const cb = tr.querySelector('.done-cb');
+    if (cb) cb.checked = done;
+  });
+}
+
 function showNotes(orderNumber) {
   const job = S.rawData.find(j => j.orderNumber === orderNumber);
   document.getElementById('notes-order-num').textContent = orderNumber;
@@ -1343,6 +1375,30 @@ function loadPreprocessedData(records) {
 
 loadPreprocessedData(PRELOADED_DATA);
 // ──── END AUTO-EMBEDDED DATA
+</script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+  const cfg = {
+    apiKey: "AIzaSyAKbvWfKY3TE1y-SnqdRODoztmpkfqx4Pc",
+    authDomain: "afs-pipeline.firebaseapp.com",
+    projectId: "afs-pipeline",
+    storageBucket: "afs-pipeline.firebasestorage.app",
+    messagingSenderId: "623445537981",
+    appId: "1:623445537981:web:8c50fdf7b82f3cccf573d4"
+  };
+  try {
+    firebase.initializeApp(cfg);
+    const db = firebase.firestore();
+    window._db = db;
+    db.collection('completions').onSnapshot(snapshot => {
+      S.completions = new Set(snapshot.docs.map(d => d.id));
+      applyCompletions();
+    }, err => console.warn('Firestore error:', err));
+  } catch(e) { console.warn('Firebase init failed:', e); }
+})();
 </script>
 </body>
 </html>
