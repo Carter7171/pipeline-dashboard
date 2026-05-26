@@ -131,6 +131,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .table-search{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;font-size:12px;outline:none;width:240px}
 .table-search:focus{border-color:var(--primary)}
 .fsel{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:6px;font-size:12px;outline:none}
+
+/* ── MULTI-SELECT WIDGET ── */
+.ms-wrap{position:relative;display:inline-block}
+.ms-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer;min-width:140px;max-width:220px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ms-btn:hover{border-color:var(--primary)}
+.ms-caret{float:right;color:var(--muted);margin-left:6px}
+.ms-panel{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px;min-width:240px;max-height:320px;overflow-y:auto;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.ms-panel.open{display:block}
+.ms-opt{display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:12px;color:var(--text);cursor:pointer;border-radius:4px;user-select:none}
+.ms-opt:hover{background:var(--surface2)}
+.ms-opt input{margin:0;cursor:pointer;accent-color:var(--primary)}
+.ms-divider{height:1px;background:var(--border);margin:4px 0}
+.ms-action{font-size:11px;color:var(--primary);padding:5px 10px;cursor:pointer;font-weight:600}
+.ms-action:hover{background:var(--surface2);border-radius:4px}
 .fsel:focus{border-color:var(--primary)}
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:12px}
@@ -293,9 +307,10 @@ tr.row-done td.done-cell{opacity:1}
     <div class="filter-chips" id="fc-custtype"></div>
     <div class="fdivider"></div>
     <span class="filter-label">Job Type</span>
-    <select class="fsel" id="fsel-jobtype" onchange="applyFilters()" style="max-width:180px">
-      <option value="">All Job Types</option>
-    </select>
+    <div class="ms-wrap">
+      <button class="ms-btn" id="ms-jobtype-btn" type="button" onclick="toggleMSPanel(event)">All Job Types <span class="ms-caret">▾</span></button>
+      <div class="ms-panel" id="ms-jobtype-panel"></div>
+    </div>
     <div class="fdivider"></div>
     <span class="filter-label">Period</span>
     <div class="filter-chips">
@@ -764,8 +779,8 @@ function processData(rows, colMap) {
   buildChips('fc-service',  services,  S.activeServices,  'service');
   buildChips('fc-custtype', custTypes, S.activeCustTypes, 'cust');
   const jobTypes = uniq(S.rawData.map(r=>r.jobType).filter(Boolean)).sort();
-  const jtSel = document.getElementById('fsel-jobtype');
-  jtSel.innerHTML = '<option value="">All Job Types</option>' + jobTypes.map(jt=>`<option value="${jt}">${jt}</option>`).join('');
+  S.activeJobTypes = new Set();
+  buildJobTypePanel(jobTypes);
 
   // Table dropdowns
   populateSelect('fsel-store',    stores,    'All Stores');
@@ -827,6 +842,63 @@ function getSet(type) {
   return type==='store' ? S.activeStores : type==='service' ? S.activeServices : S.activeCustTypes;
 }
 
+function buildJobTypePanel(jobTypes) {
+  const panel = document.getElementById('ms-jobtype-panel');
+  if (!panel) return;
+  const items = jobTypes.map(jt => {
+    const safe = jt.replace(/"/g, '&quot;');
+    return `<label class="ms-opt"><input type="checkbox" data-jt="${safe}" onchange="toggleJobType(this)"> ${jt}</label>`;
+  }).join('');
+  panel.innerHTML =
+    `<div class="ms-action" onclick="msSelectAll('jobtype', true)">Select All</div>
+     <div class="ms-action" onclick="msSelectAll('jobtype', false)">Clear All</div>
+     <div class="ms-divider"></div>` + items;
+}
+
+function toggleMSPanel(e) {
+  e.stopPropagation();
+  const panel = document.getElementById('ms-jobtype-panel');
+  const isOpen = panel.classList.contains('open');
+  document.querySelectorAll('.ms-panel.open').forEach(p => p.classList.remove('open'));
+  if (!isOpen) panel.classList.add('open');
+}
+
+function toggleJobType(cb) {
+  const jt = cb.dataset.jt.replace(/&quot;/g, '"');
+  if (cb.checked) S.activeJobTypes.add(jt);
+  else S.activeJobTypes.delete(jt);
+  updateMSButton();
+  applyFilters();
+}
+
+function msSelectAll(kind, on) {
+  if (kind !== 'jobtype') return;
+  const panel = document.getElementById('ms-jobtype-panel');
+  S.activeJobTypes = new Set();
+  panel.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = on;
+    if (on) S.activeJobTypes.add(cb.dataset.jt.replace(/&quot;/g, '"'));
+  });
+  // If "Select All" was clicked, treat as no filter (size 0 means all)
+  if (on) S.activeJobTypes = new Set();
+  updateMSButton();
+  applyFilters();
+}
+
+function updateMSButton() {
+  const btn = document.getElementById('ms-jobtype-btn');
+  if (!btn) return;
+  const n = S.activeJobTypes.size;
+  btn.innerHTML = (n === 0 ? 'All Job Types' : `${n} Job Type${n>1?'s':''} selected`) + ' <span class="ms-caret">▾</span>';
+}
+
+// Close multi-select panels on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.ms-wrap')) {
+    document.querySelectorAll('.ms-panel.open').forEach(p => p.classList.remove('open'));
+  }
+});
+
 function togglePeriod(chip) {
   const p = chip.dataset.period;
   if (p === 'all') {
@@ -857,13 +929,11 @@ function applyFilters() {
   const projFilter   = document.getElementById('fsel-proj').value;
   const storeFilter  = document.getElementById('fsel-store').value;
   const custFilter   = document.getElementById('fsel-custtype').value;
-  const jobTypeFilter= document.getElementById('fsel-jobtype').value;
-
   let data = S.rawData.filter(job => {
     if (S.activeStores.size    && job.store           && !S.activeStores.has(job.store))           return false;
     if (S.activeServices.size  && job.serviceOffering && !S.activeServices.has(job.serviceOffering)) return false;
     if (S.activeCustTypes.size && job.customerType    && !S.activeCustTypes.has(job.customerType))  return false;
-    if (jobTypeFilter && job.jobType !== jobTypeFilter) return false;
+    if (S.activeJobTypes.size && job.jobType && !S.activeJobTypes.has(job.jobType)) return false;
     if (!S.activePeriods.has('all') && !S.activePeriods.has(job.proj.section)) return false;
     if (projFilter  && job.proj.cat !== projFilter)   return false;
     if (storeFilter && job.store !== storeFilter)     return false;
@@ -1391,8 +1461,8 @@ function loadPreprocessedData(records) {
   populateSelect('fsel-custtype', custTypes, 'All Cust. Types');
 
   const jobTypes = uniq(S.rawData.map(r=>r.jobType).filter(Boolean)).sort();
-  const jtSel = document.getElementById('fsel-jobtype');
-  jtSel.innerHTML = '<option value="">All Job Types</option>' + jobTypes.map(jt=>`<option value="${jt}">${jt}</option>`).join('');
+  S.activeJobTypes = new Set();
+  buildJobTypePanel(jobTypes);
 
   document.getElementById('kn-current').textContent = MONTHS[TODAY.getMonth()];
   document.getElementById('kn-next').textContent    = MONTHS[(TODAY.getMonth()+1)%12];

@@ -60,8 +60,8 @@ function loadPreprocessedData(records) {
   populateSelect('fsel-custtype', custTypes, 'All Cust. Types');
 
   const jobTypes = uniq(S.rawData.map(r=>r.jobType).filter(Boolean)).sort();
-  const jtSel = document.getElementById('fsel-jobtype');
-  jtSel.innerHTML = '<option value="">All Job Types</option>' + jobTypes.map(jt=>\`<option value="\${jt}">\${jt}</option>\`).join('');
+  S.activeJobTypes = new Set();
+  buildJobTypePanel(jobTypes);
 
   document.getElementById('kn-current').textContent = MONTHS[TODAY.getMonth()];
   document.getElementById('kn-next').textContent    = MONTHS[(TODAY.getMonth()+1)%12];
