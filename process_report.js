@@ -127,8 +127,9 @@ while (i < raw.length) {
         orderType = '', currentStatus = '',
         lot = '', tract = '';
     let revenue = 0, cost = 0;
+    let laborPrice = 0, laborCost = 0, laborLineCount = 0;
     const notes = [];
-    let totalsFound = false, inNotesSection = false;
+    let totalsFound = false, inNotesSection = false, inLineSection = false;
 
     for (let j = i; j < Math.min(i + 150, raw.length); j++) {
       const r  = raw[j];
@@ -147,6 +148,19 @@ while (i < raw.length) {
 
       if (!totalsFound) {
         // ── PRE-TOTALS: extract order header fields ────────────────────────
+
+        // Detect line-items header row to start tracking line items
+        if (r0 === 'Line No.') { inLineSection = true; continue; }
+
+        // Capture labor lines (data rows after the Line No. header, before Order Totals)
+        if (inLineSection && typeof r[0] === 'number') {
+          const style = String(cell(r, 2)).toUpperCase();
+          if (/\bLABOR\b/.test(style)) {
+            laborLineCount++;
+            laborPrice += cellNum(r, 9);   // extended Price
+            laborCost  += cellNum(r, 10);  // extended Cost
+          }
+        }
 
         // Line-level internal notes (col 1 = "Order Line Internal", col 3 = comment)
         if (!r0 && /^Order\s*Line\s*Internal$/i.test(cell(r, 1)) && cell(r, 3)) {
@@ -235,6 +249,10 @@ while (i < raw.length) {
       margin:      Math.round(margin      * 10)  / 10,
       lot:         String(lot   || '').trim(),
       tract:       String(tract || '').trim(),
+      laborQuoted:   laborLineCount > 0 && laborPrice > 0,
+      laborBalanced: laborLineCount > 0 && laborPrice >= laborCost && laborCost > 0,
+      laborPrice:    Math.round(laborPrice * 100) / 100,
+      laborCost:     Math.round(laborCost  * 100) / 100,
       notes,
     });
   }
