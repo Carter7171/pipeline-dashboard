@@ -124,7 +124,8 @@ while (i < raw.length) {
 
     let store = '', installDateStr = '',
         customerName = '', customerType = '', serviceOffering = '',
-        orderType = '', currentStatus = '';
+        orderType = '', currentStatus = '',
+        lot = '', tract = '';
     let revenue = 0, cost = 0;
     const notes = [];
     let totalsFound = false, inNotesSection = false;
@@ -172,7 +173,7 @@ while (i < raw.length) {
           continue;
         }
 
-        // Scan all cells for store / install date
+        // Scan all cells for store / install date / lot / tract
         for (let k = 0; k < (r.length || 15); k++) {
           const v = cell(r, k);
           if (!v) continue;
@@ -180,6 +181,14 @@ while (i < raw.length) {
             store = afterLabel(v).split(/\s+/)[0];
           if (/^Install\s*Date\s*:/i.test(v) && !installDateStr)
             installDateStr = afterLabel(v);
+          if (/^Lot\s*:/i.test(v) && !lot) {
+            const afterC = afterLabel(v);
+            lot = afterC || cell(r, k+1);
+          }
+          if (/^Tract\s*:/i.test(v) && !tract) {
+            const afterC = afterLabel(v);
+            tract = afterC || cell(r, k+1);
+          }
         }
 
       } else {
@@ -224,6 +233,8 @@ while (i < raw.length) {
       cost:        Math.round(cost        * 100) / 100,
       grossProfit: Math.round(grossProfit * 100) / 100,
       margin:      Math.round(margin      * 10)  / 10,
+      lot:         String(lot   || '').trim(),
+      tract:       String(tract || '').trim(),
       notes,
     });
   }

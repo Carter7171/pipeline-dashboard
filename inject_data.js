@@ -42,6 +42,8 @@ function loadPreprocessedData(records) {
     grossProfit: r.grossProfit  || 0,
     margin:      r.margin       || 0,
     notes:       r.notes        || [],
+    lot:         r.lot          || '',
+    tract:       r.tract        || '',
   }));
 
   const stores    = uniq(S.rawData.map(r=>r.store).filter(Boolean)).sort();
