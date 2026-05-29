@@ -62,8 +62,7 @@ function loadPreprocessedData(records) {
   populateSelect('fsel-custtype', custTypes, 'All Cust. Types');
 
   const jobTypes = uniq(S.rawData.map(r=>r.jobType).filter(Boolean)).sort();
-  S.activeJobTypes = new Set();
-  buildJobTypePanel(jobTypes);
+  buildJobTypePanel(jobTypes);  // initializes S.activeJobTypes and S.allJobTypes
 
   document.getElementById('kn-current').textContent = MONTHS[TODAY.getMonth()];
   document.getElementById('kn-next').textContent    = MONTHS[(TODAY.getMonth()+1)%12];
