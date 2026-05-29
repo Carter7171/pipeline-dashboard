@@ -8,6 +8,7 @@ const INPUT  = path.join(__dirname, 'OrdersDetailed20260529030503.xlsx');
 const OUTPUT = path.join(__dirname, 'report_data.json');
 
 const TODAY           = new Date(); TODAY.setHours(0,0,0,0);
+const CUR_MONTH_START = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
 const CUR_MONTH_END   = new Date(TODAY.getFullYear(), TODAY.getMonth()+1, 0, 23, 59, 59);
 const NEXT_MONTH_START= new Date(TODAY.getFullYear(), TODAY.getMonth()+1, 1);
 const NEXT_MONTH_END  = new Date(TODAY.getFullYear(), TODAY.getMonth()+2, 0, 23, 59, 59);
@@ -50,10 +51,15 @@ function daysBeforeMonthEnd(date) {
   return Math.round((last - d) / 86400000);
 }
 
-function project(date, jobType) {
+function project(date, jobType, currentStatus) {
   if (!date) return { cat:'unscheduled', label:'No Install Date', section:'unscheduled' };
   const d = new Date(date); d.setHours(0,0,0,0);
-  if (d < TODAY) return { cat:'past', label:'Past / Overdue', section:'past' };
+  const isCompleted = /^COMPLETED/i.test(currentStatus || '');
+  // Install date in a PREVIOUS month
+  if (d < CUR_MONTH_START) {
+    if (isCompleted) return { cat:'past',    label:'Past Due (Completed, Not Closed)', section:'past' };
+    return                   { cat:'overdue', label:'Overdue Install',                  section:'past' };
+  }
   const tile = isTile(jobType);
   const dbe  = daysBeforeMonthEnd(d);
   if (d <= CUR_MONTH_END) {
@@ -214,7 +220,7 @@ while (i < raw.length) {
     // Install Date only — no Key Date fallback
     const dateStr = installDateStr;
     const installDate = parseDate(dateStr);
-    const proj        = project(installDate, orderType);
+    const proj        = project(installDate, orderType, currentStatus);
     const grossProfit = revenue - cost;
     const margin      = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
 
@@ -243,9 +249,9 @@ while (i < raw.length) {
 
 console.log(`\nParsed ${orders.length} orders`);
 
-const counts = { past:0, likely:0, possible:0, rollover:0, next:0, future:0, unscheduled:0 };
-const vol    = { past:0, likely:0, possible:0, rollover:0, next:0, future:0, unscheduled:0 };
-const gp     = { past:0, likely:0, possible:0, rollover:0, next:0, future:0, unscheduled:0 };
+const counts = { past:0, overdue:0, likely:0, possible:0, rollover:0, next:0, future:0, unscheduled:0 };
+const vol    = { past:0, overdue:0, likely:0, possible:0, rollover:0, next:0, future:0, unscheduled:0 };
+const gp     = { past:0, overdue:0, likely:0, possible:0, rollover:0, next:0, future:0, unscheduled:0 };
 
 orders.forEach(o => {
   counts[o.proj.cat] = (counts[o.proj.cat]||0) + 1;
@@ -257,7 +263,7 @@ const fmt = n => '$' + Math.round(n).toLocaleString();
 
 console.log('\n=== PROJECTION SUMMARY ===');
 console.log(`${'Category'.padEnd(28)} ${'Count'.padStart(6)} ${'Revenue'.padStart(14)} ${'Gross Profit'.padStart(14)}`);
-for (const cat of ['likely','possible','rollover','next','future','past','unscheduled']) {
+for (const cat of ['likely','possible','rollover','next','future','past','overdue','unscheduled']) {
   console.log(`${cat.padEnd(28)} ${String(counts[cat]).padStart(6)} ${fmt(vol[cat]).padStart(14)} ${fmt(gp[cat]).padStart(14)}`);
 }
 const totalRev = Object.values(vol).reduce((a,b)=>a+b,0);
