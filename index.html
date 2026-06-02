@@ -1153,23 +1153,65 @@ function updateCharts(data) {
 const CATS = ['likely','possible','rollover','next','past','unscheduled'];
 const CAT_SHORT = { likely:'Likely', possible:'Possible', rollover:'Rollover', next:'Next Month', past:'Past' };
 
+// Plugin: draw the stacked-bar total on top of each bar
+const stackTotalsPlugin = {
+  id: 'stackTotals',
+  afterDatasetsDraw(chart) {
+    const { ctx, data, scales } = chart;
+    if (!data.labels) return;
+    ctx.save();
+    ctx.fillStyle = '#e6edf3';
+    ctx.font = '700 10px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    data.labels.forEach((_, i) => {
+      const total = data.datasets.reduce((s, ds) => s + (Number(ds.data[i]) || 0), 0);
+      if (!total) return;
+      // Top of stack uses the LAST dataset's bar element (top segment of the stack)
+      const lastDsIdx = data.datasets.length - 1;
+      const meta = chart.getDatasetMeta(lastDsIdx);
+      const bar = meta && meta.data && meta.data[i];
+      if (!bar) return;
+      const x = bar.x;
+      const y = bar.y - 3; // a little above the top of the bar
+      const label = chart.options._dollarAxis ? fmtDollar(total) : String(total);
+      ctx.fillText(label, x, y);
+    });
+    ctx.restore();
+  }
+};
+
 function renderBarChart(id, labels, datasets, dollarAxis) {
   if (S.charts[id]) S.charts[id].destroy();
   const canvas = document.getElementById(id);
   S.charts[id] = new Chart(canvas, {
     type:'bar',
     data:{ labels, datasets },
+    plugins:[ stackTotalsPlugin ],
     options:{
       responsive:true, maintainAspectRatio:false,
       interaction:{ mode:'index', intersect:false },
+      _dollarAxis: !!dollarAxis,
+      layout:{ padding:{ top: 18 } },  // leave room for total labels
       plugins:{
         legend:{ position:'bottom', labels:{ color:'#8b949e', font:{size:10}, boxWidth:9, padding:7 } },
         tooltip:{
           backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1,
           titleColor:'#c9d1d9', bodyColor:'#8b949e',
           callbacks: dollarAxis ? {
-            label: ctx => ' ' + ctx.dataset.label + ': ' + fmtDollar(ctx.parsed.y)
-          } : {},
+            label: ctx => ' ' + ctx.dataset.label + ': ' + fmtDollar(ctx.parsed.y),
+            footer: items => {
+              if (!items || !items.length) return '';
+              const total = items.reduce((s,it)=>s+(it.parsed.y||0),0);
+              return 'Total: ' + fmtDollar(total);
+            }
+          } : {
+            footer: items => {
+              if (!items || !items.length) return '';
+              const total = items.reduce((s,it)=>s+(it.parsed.y||0),0);
+              return 'Total: ' + total;
+            }
+          },
         },
       },
       scales:{
@@ -1445,6 +1487,7 @@ function toast(msg, type='info') {
     }, err => console.warn('Firestore error:', err));
   } catch(e) { console.warn('Firebase init failed:', e); }
 })();
+
 
 
 
