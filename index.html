@@ -341,11 +341,6 @@ tr.row-done td.done-cell{opacity:1}
       <div class="kpi-val" id="kpi-shouldclose">—</div>
       <div class="kpi-sub"><span id="kpi-shouldclose-gp">—</span> GP &nbsp;·&nbsp; <span id="kpi-shouldclose-ct">—</span> jobs</div>
     </div>
-    <div class="kpi k-success">
-      <div class="kpi-label">↳ Likely Close</div>
-      <div class="kpi-val" id="kpi-likely">—</div>
-      <div class="kpi-sub"><span id="kpi-likely-gp">—</span> GP &nbsp;·&nbsp; <span id="kpi-likely-ct">—</span> jobs</div>
-    </div>
     <div class="kpi k-warn">
       <div class="kpi-label">Possible Close — This Month</div>
       <div class="kpi-val" id="kpi-possible">—</div>
@@ -1015,10 +1010,6 @@ function updateKPIs(data) {
   set('kpi-shouldclose',     fmtDollar(shouldCloseRev));
   set('kpi-shouldclose-gp',  fmtDollar(shouldCloseGP));
   set('kpi-shouldclose-ct',  shouldCloseCt);
-
-  set('kpi-likely',    fmtDollar(rev.likely));
-  set('kpi-likely-gp', fmtDollar(gp.likely));
-  set('kpi-likely-ct', c.likely);
 
   set('kpi-possible',    fmtDollar(rev.possible));
   set('kpi-possible-gp', fmtDollar(gp.possible));
