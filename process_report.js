@@ -275,6 +275,21 @@ while (i < raw.length) {
     // Flatten line items into the global materials list with order context
     const installIso = installDate ? installDate.toISOString().split('T')[0] : null;
     for (const ln of lines) {
+      // Normalize line status into a primary bucket
+      const rawStatus = String(ln.status || '').trim();
+      let bucket = 'None';
+      if (/^staged/i.test(rawStatus))         bucket = 'Staged';
+      else if (/^reserved/i.test(rawStatus))  bucket = 'Reserved';
+      else if (/^cut\b/i.test(rawStatus))     bucket = 'Cut';
+      else if (/^delivered/i.test(rawStatus)) bucket = 'Delivered';
+      else if (/^on\s*order/i.test(rawStatus))   bucket = 'On Order';
+      else if (/^back\s*order/i.test(rawStatus)) bucket = 'Back Order';
+      else if (/^in\s*transit/i.test(rawStatus)) bucket = 'In Transit';
+      else if (/^requested/i.test(rawStatus))    bucket = 'Requested';
+      else if (/^genpo/i.test(rawStatus))        bucket = 'GenPO';
+      else if (!rawStatus || /^none$/i.test(rawStatus)) bucket = 'None';
+      else bucket = 'Other';
+
       materialLines.push({
         orderNumber,
         customerName,
@@ -289,7 +304,8 @@ while (i < raw.length) {
         um:            ln.um,
         price:         Math.round(ln.price * 100) / 100,
         cost:          Math.round(ln.cost  * 100) / 100,
-        status:        ln.status || 'None',
+        status:        bucket,
+        rawStatus:     rawStatus,  // keep original for tooltip / detail view
         lineInstallDate: ln.lineInstallDate,
       });
     }
