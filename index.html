@@ -448,7 +448,7 @@ tr.row-done td.done-cell{opacity:1}
       <table>
         <thead>
           <tr>
-            <th class="done-cell" title="Mark complete">✓</th>
+            <th class="done-cell" title="Sort by completion" onclick="sortTable('completed')" style="cursor:pointer">✓ <span class="sort-ind" id="si-completed"></span></th>
             <th onclick="sortTable('orderNumber')">Order # <span class="sort-ind" id="si-orderNumber"></span></th>
             <th onclick="sortTable('lot')">Lot <span class="sort-ind" id="si-lot"></span></th>
             <th onclick="sortTable('tract')">Tract <span class="sort-ind" id="si-tract"></span></th>
@@ -965,9 +965,11 @@ function applyFilters() {
   }
   S.tableRows = sortRows(tableData);
 
-  updateKPIs(data);
-  updateProjectionPanels(data);
-  updateCharts(data);
+  // Totals/charts/panels exclude jobs marked complete via the row checkbox
+  const dataForTotals = data.filter(j => !S.completions.has(j.orderNumber));
+  updateKPIs(dataForTotals);
+  updateProjectionPanels(dataForTotals);
+  updateCharts(dataForTotals);
   renderTable();
 }
 
@@ -1257,7 +1259,13 @@ function renderCustTypeChart(data) {
 function sortRows(data) {
   const { field, dir } = S.sort;
   return [...data].sort((a,b)=>{
-    let va=a[field], vb=b[field];
+    let va, vb;
+    if (field === 'completed') {
+      va = S.completions.has(a.orderNumber) ? 1 : 0;
+      vb = S.completions.has(b.orderNumber) ? 1 : 0;
+      return dir==='asc' ? va-vb : vb-va;
+    }
+    va = a[field]; vb = b[field];
     if (va instanceof Date && vb instanceof Date) return dir==='asc'?va-vb:vb-va;
     if (!va) va=''; if (!vb) vb='';
     const cmp = String(va).toLowerCase().localeCompare(String(vb).toLowerCase());
@@ -1406,6 +1414,8 @@ function applyCompletions() {
     const cb = tr.querySelector('.done-cb');
     if (cb) cb.checked = done;
   });
+  // Recompute KPIs/panels/charts so completed jobs are excluded from totals
+  if (S.rawData && S.rawData.length) applyFilters();
 }
 
 function showNotes(orderNumber) {
