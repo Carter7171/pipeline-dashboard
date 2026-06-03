@@ -120,6 +120,7 @@ function findInRow(row, labelRegex) {
 
 // Parse order blocks — anchor: col 0 matches "Order #:"
 const orders = [];
+const materialLines = [];  // global flat list of line items across all orders
 let i = 0;
 while (i < raw.length) {
   const row = raw[i];
@@ -134,7 +135,8 @@ while (i < raw.length) {
         lot = '', tract = '';
     let revenue = 0, cost = 0;
     const notes = [];
-    let totalsFound = false, inNotesSection = false;
+    const lines = [];  // line items for this order
+    let totalsFound = false, inNotesSection = false, inLineSection = false;
 
     for (let j = i; j < Math.min(i + 150, raw.length); j++) {
       const r  = raw[j];
@@ -153,6 +155,32 @@ while (i < raw.length) {
 
       if (!totalsFound) {
         // ── PRE-TOTALS: extract order header fields ────────────────────────
+
+        // "Line No." header row signals start of line-item table
+        if (r0 === 'Line No.') { inLineSection = true; continue; }
+
+        // Capture material line: col 0 is the line number (numeric)
+        if (inLineSection && typeof r[0] === 'number') {
+          const itemNo = cell(r, 1);
+          const style  = cell(r, 2);
+          // Skip purely empty/decorative lines
+          if (itemNo || style) {
+            lines.push({
+              lineNo:      r[0],
+              itemNo,
+              style,
+              color:       cell(r, 3),
+              qty:         cellNum(r, 5),
+              um:          cell(r, 8),
+              price:       cellNum(r, 9),
+              cost:        cellNum(r, 10),
+              status:      cell(r, 12) || 'None',
+              costStatus:  cell(r, 13),
+              lineInstallDate: cell(r, 14),
+            });
+          }
+          continue;
+        }
 
         // Line-level internal notes (col 1 = "Order Line Internal", col 3 = comment)
         if (!r0 && /^Order\s*Line\s*Internal$/i.test(cell(r, 1)) && cell(r, 3)) {
@@ -243,6 +271,28 @@ while (i < raw.length) {
       tract:       String(tract || '').trim(),
       notes,
     });
+
+    // Flatten line items into the global materials list with order context
+    const installIso = installDate ? installDate.toISOString().split('T')[0] : null;
+    for (const ln of lines) {
+      materialLines.push({
+        orderNumber,
+        customerName,
+        store,
+        installDate:   installIso,
+        orderStatus:   currentStatus,
+        lineNo:        ln.lineNo,
+        itemNo:        ln.itemNo,
+        style:         ln.style,
+        color:         ln.color,
+        qty:           Math.round(ln.qty   * 100) / 100,
+        um:            ln.um,
+        price:         Math.round(ln.price * 100) / 100,
+        cost:          Math.round(ln.cost  * 100) / 100,
+        status:        ln.status || 'None',
+        lineInstallDate: ln.lineInstallDate,
+      });
+    }
   }
   i++;
 }
@@ -290,3 +340,19 @@ const output = {
 };
 fs.writeFileSync(OUTPUT, JSON.stringify(output));
 console.log(`\nWrote ${OUTPUT}`);
+
+// Also write material lines (flat list across all orders)
+const MATERIALS_OUTPUT = path.join(__dirname, 'materials_data.json');
+const materialsOut = {
+  generatedAt: new Date().toISOString(),
+  lineCount: materialLines.length,
+  data: materialLines,
+};
+fs.writeFileSync(MATERIALS_OUTPUT, JSON.stringify(materialsOut));
+console.log(`Wrote ${MATERIALS_OUTPUT}  (${materialLines.length} line items)`);
+
+// Status breakdown
+const byStatus = {};
+materialLines.forEach(ln => { byStatus[ln.status] = (byStatus[ln.status]||0) + 1; });
+console.log('\nLine status counts:');
+Object.entries(byStatus).sort((a,b)=>b[1]-a[1]).forEach(([s,c]) => console.log(`  ${c.toString().padStart(6)}  ${s}`));

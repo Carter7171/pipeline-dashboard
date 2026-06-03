@@ -85,3 +85,31 @@ html = html.replace('</script>\n</body>\n</html>', loadFn + '</script>\n</body>\
 fs.writeFileSync(HTML_FILE, html);
 console.log(`Done — updated ${HTML_FILE}`);
 console.log(`File size: ${(fs.statSync(HTML_FILE).size / 1024).toFixed(0)} KB`);
+
+// ─── MATERIALS PAGE ───────────────────────────────────────────────────────
+const MATERIALS_DATA = path.join(__dirname, 'materials_data.json');
+const MATERIALS_HTML = path.join(__dirname, 'materials.html');
+if (fs.existsSync(MATERIALS_DATA) && fs.existsSync(MATERIALS_HTML)) {
+  const matRaw = JSON.parse(fs.readFileSync(MATERIALS_DATA, 'utf8'));
+  const matRecords = matRaw.data || [];
+  console.log(`\nEmbedding ${matRecords.length} line items into materials page...`);
+
+  let mhtml = fs.readFileSync(MATERIALS_HTML, 'utf8');
+  // Strip any previous injected block
+  mhtml = mhtml.replace(/\/\/ ──── AUTO-EMBEDDED MATERIALS[\s\S]*?\/\/ ──── END AUTO-EMBEDDED MATERIALS\n?/g, '');
+
+  const matBlock = `
+// ──── AUTO-EMBEDDED MATERIALS (generated ${new Date().toISOString().slice(0,10)}) ────
+const PRELOADED_MATERIALS = ${JSON.stringify(matRecords)};
+loadLines(PRELOADED_MATERIALS);
+// ──── END AUTO-EMBEDDED MATERIALS
+`;
+
+  mhtml = mhtml.replace('</script>\n\n</body>', matBlock + '</script>\n\n</body>');
+
+  fs.writeFileSync(MATERIALS_HTML, mhtml);
+  console.log(`Done — updated ${MATERIALS_HTML}`);
+  console.log(`File size: ${(fs.statSync(MATERIALS_HTML).size / 1024).toFixed(0)} KB`);
+} else {
+  console.log('Skipping materials page (materials_data.json or materials.html not found)');
+}
