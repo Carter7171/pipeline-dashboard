@@ -44,6 +44,8 @@ function loadPreprocessedData(records) {
     notes:       r.notes        || [],
     lot:         r.lot          || '',
     tract:       r.tract        || '',
+    startingPrice:  r.startingPrice  != null ? r.startingPrice  : null,
+    startingMargin: r.startingMargin != null ? r.startingMargin : null,
   }));
 
   const stores    = uniq(S.rawData.map(r=>r.store).filter(Boolean)).sort();

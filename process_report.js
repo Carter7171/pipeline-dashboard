@@ -51,6 +51,50 @@ function daysBeforeMonthEnd(date) {
   return Math.round((last - d) / 86400000);
 }
 
+// Extract the "starting price" and "starting margin" from the OLDEST Margin order-remark.
+// Patterns seen: "ORIGINAL PO AMOUNT: $55.80", "PO - $66", "PO is $332.50",
+//                "TQC PO #204561 $664.94", "billed at $255.00".
+function extractStartingMetrics(notes) {
+  if (!notes || !notes.length) return { startingPrice: null, startingMargin: null };
+  // Margin remarks only
+  const marginNotes = notes.filter(n =>
+    /margin/i.test(n.type || '') && /margin|po|billed|original/i.test(n.comment || '')
+  );
+  if (!marginNotes.length) return { startingPrice: null, startingMargin: null };
+  // Sort by date ascending — earliest first
+  marginNotes.sort((a, b) => {
+    const da = parseDate(a.date); const db = parseDate(b.date);
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return da - db;
+  });
+  // Find the first note with a dollar amount and/or margin pct
+  let startingPrice = null, startingMargin = null;
+  for (const n of marginNotes) {
+    const c = n.comment || '';
+    if (startingPrice == null) {
+      // Look for labeled $ values first (more reliable)
+      let m =
+        c.match(/(?:ORIGINAL\s*PO\s*AMOUNT|PO\s*amount|PO\s*is|PO\s*[-:]|billed\s*at|TQC\s*PO\s*#?\d*)\s*[:\-]?\s*\$\s*([\d,]+(?:\.\d{1,2})?)/i) ||
+        c.match(/\$\s*([\d,]+(?:\.\d{1,2})?)/);
+      if (m) {
+        const v = parseFloat(m[1].replace(/,/g, ''));
+        if (!isNaN(v) && v > 0) startingPrice = v;
+      }
+    }
+    if (startingMargin == null) {
+      const m = c.match(/(-?\d+(?:\.\d+)?)\s*%/);
+      if (m) {
+        const v = parseFloat(m[1]);
+        if (!isNaN(v)) startingMargin = v;
+      }
+    }
+    if (startingPrice != null && startingMargin != null) break;
+  }
+  return { startingPrice, startingMargin };
+}
+
 function project(date, jobType, currentStatus) {
   if (!date) return { cat:'unscheduled', label:'No Install Date', section:'unscheduled' };
   const d = new Date(date); d.setHours(0,0,0,0);
@@ -269,8 +313,13 @@ while (i < raw.length) {
       margin:      Math.round(margin      * 10)  / 10,
       lot:         String(lot   || '').trim(),
       tract:       String(tract || '').trim(),
+      startingPrice:  null,  // filled in below
+      startingMargin: null,
       notes,
     });
+    const sm = extractStartingMetrics(notes);
+    orders[orders.length-1].startingPrice  = sm.startingPrice  != null ? Math.round(sm.startingPrice  * 100) / 100 : null;
+    orders[orders.length-1].startingMargin = sm.startingMargin != null ? Math.round(sm.startingMargin * 10)  / 10  : null;
 
     // Flatten line items into the global materials list with order context
     const installIso = installDate ? installDate.toISOString().split('T')[0] : null;
