@@ -115,3 +115,61 @@ loadLines(PRELOADED_MATERIALS);
 } else {
   console.log('Skipping materials page (materials_data.json or materials.html not found)');
 }
+
+// ─── CLEAR FIRESTORE COMPLETIONS ──────────────────────────────────────────
+// Every new report wipes previous checked-off state so the team starts fresh.
+// Pass --keep-completions on the command line to skip this step.
+const https = require('https');
+const FIREBASE_PROJECT = 'afs-pipeline';
+const COMPLETIONS_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/completions`;
+
+function httpReq(url, method = 'GET') {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = https.request({
+      hostname: u.hostname,
+      path: u.pathname + u.search,
+      method,
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => resolve({ status: res.statusCode, body: data }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+async function clearFirestoreCompletions() {
+  if (process.argv.includes('--keep-completions')) {
+    console.log('\n(Keeping completion checkboxes — --keep-completions flag set.)');
+    return;
+  }
+  console.log('\nClearing Firestore completions (checked-off rows)...');
+  try {
+    let totalDeleted = 0;
+    let pageToken = null;
+    do {
+      const url = `${COMPLETIONS_BASE}?pageSize=300${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
+      const listRes = await httpReq(url);
+      if (listRes.status !== 200) {
+        console.warn(`  list failed: HTTP ${listRes.status} ${listRes.body.substring(0,200)}`);
+        return;
+      }
+      const obj = JSON.parse(listRes.body);
+      const docs = obj.documents || [];
+      pageToken = obj.nextPageToken || null;
+      for (const d of docs) {
+        // d.name like "projects/afs-pipeline/databases/(default)/documents/completions/CG12345"
+        const delRes = await httpReq(`https://firestore.googleapis.com/v1/${d.name}`, 'DELETE');
+        if (delRes.status === 200) totalDeleted++;
+        else console.warn(`  delete failed for ${d.name}: HTTP ${delRes.status}`);
+      }
+    } while (pageToken);
+    console.log(`  Cleared ${totalDeleted} completion entr${totalDeleted===1?'y':'ies'}.`);
+  } catch (e) {
+    console.warn('  Could not clear completions (network/Firestore issue):', e.message);
+  }
+}
+
+clearFirestoreCompletions();
