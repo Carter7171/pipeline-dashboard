@@ -154,6 +154,9 @@ td{padding:8px 12px;border-bottom:1px solid rgba(48,54,61,.5);vertical-align:mid
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(255,255,255,.025)}
 .sort-ind{color:var(--primary);margin-left:3px}
+tr.row-mismatch td{background:rgba(210,153,34,.12)}
+tr.row-mismatch:hover td{background:rgba(210,153,34,.20)}
+tr.row-mismatch .start-cell{color:var(--warning) !important;font-weight:600}
 
 /* ── BADGES ── */
 .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;white-space:nowrap}
@@ -1306,7 +1309,12 @@ function renderTable() {
     tbody.innerHTML = pageData.map(j=>{
       const gpColor = (j.grossProfit||0) < 0 ? 'color:var(--danger)' : (j.grossProfit||0) > 0 ? 'color:var(--success)' : '';
       const marginColor = (j.margin||0) < 0 ? 'color:var(--danger)' : (j.margin||0) < 20 ? 'color:var(--warning)' : 'color:var(--success)';
-      return `<tr data-order="${j.orderNumber}"${S.completions.has(j.orderNumber)?' class="row-done"':''}>
+      const priceMismatch = j.startingPrice != null && j.revenue > 0 && Math.abs(j.startingPrice - j.revenue) > 0.01;
+      const rowCls = [
+        S.completions.has(j.orderNumber) ? 'row-done' : '',
+        priceMismatch && !S.completions.has(j.orderNumber) ? 'row-mismatch' : ''
+      ].filter(Boolean).join(' ');
+      return `<tr data-order="${j.orderNumber}"${rowCls ? ` class="${rowCls}"` : ''}>
         <td class="done-cell"><input type="checkbox" class="done-cb"${S.completions.has(j.orderNumber)?' checked':''} onchange="toggleCompletion('${j.orderNumber}')"></td>
         <td ondblclick="showNotes('${j.orderNumber}')" title="Double-click to view notes" style="cursor:pointer"><code style="font-size:11px;color:var(--muted)">${j.orderNumber||'—'}</code></td>
         <td>${j.lot||'—'}</td>
@@ -1315,7 +1323,7 @@ function renderTable() {
         <td><strong>${j.store||'—'}</strong></td>
         <td>${j.jobType||'—'}${j.tile?'<span class="badge b-tile">Tile</span>':''}</td>
         <td style="white-space:nowrap">${fmtDate(j.scheduledInstallDate)}</td>
-        <td style="text-align:right;white-space:nowrap;color:var(--muted)">${j.startingPrice!=null?fmtDollar(j.startingPrice):'—'}</td>
+        <td class="start-cell" style="text-align:right;white-space:nowrap;color:var(--muted)">${j.startingPrice!=null?fmtDollar(j.startingPrice):'—'}</td>
         <td style="text-align:right;white-space:nowrap">${j.revenue>0?fmtDollar(j.revenue):'—'}</td>
         <td style="text-align:right;white-space:nowrap;${gpColor}">${j.revenue>0?fmtDollar(j.grossProfit):'—'}</td>
         <td style="text-align:right;white-space:nowrap;${j.revenue>0?marginColor:''}">${j.revenue>0?(j.margin.toFixed(1)+'%'):'—'}</td>
@@ -1491,6 +1499,7 @@ function toast(msg, type='info') {
     }, err => console.warn('Firestore error:', err));
   } catch(e) { console.warn('Firebase init failed:', e); }
 })();
+
 
 
 
