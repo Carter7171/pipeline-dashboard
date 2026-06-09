@@ -116,6 +116,35 @@ loadLines(PRELOADED_MATERIALS);
   console.log('Skipping materials page (materials_data.json or materials.html not found)');
 }
 
+// ─── CHARGEBACKS PAGE ─────────────────────────────────────────────────────────
+const CHARGEBACKS_DATA = path.join(__dirname, 'chargebacks_data.json');
+const CHARGEBACKS_HTML = path.join(__dirname, 'chargebacks.html');
+if (fs.existsSync(CHARGEBACKS_DATA) && fs.existsSync(CHARGEBACKS_HTML)) {
+  const cbRaw = JSON.parse(fs.readFileSync(CHARGEBACKS_DATA, 'utf8'));
+  const cbRecords = cbRaw.data || [];
+  console.log(`\nEmbedding ${cbRecords.length} chargeback records into chargebacks page...`);
+
+  let chtml = fs.readFileSync(CHARGEBACKS_HTML, 'utf8');
+  chtml = chtml.replace(/\/\/ ──── AUTO-EMBEDDED CHARGEBACKS[\s\S]*?\/\/ ──── END AUTO-EMBEDDED CHARGEBACKS\n?/g, '');
+
+  const cbBlock = `
+// ──── AUTO-EMBEDDED CHARGEBACKS (generated ${new Date().toISOString().slice(0,10)}) ────
+const PRELOADED_CHARGEBACKS = ${JSON.stringify(cbRecords)};
+loadChargebacks(PRELOADED_CHARGEBACKS);
+// ──── END AUTO-EMBEDDED CHARGEBACKS
+`;
+  chtml = chtml.replace(
+    "document.getElementById('hdr-sub').textContent = 'No data loaded — run inject_data.js after process_chargebacks.js';",
+    cbBlock + "\ndocument.getElementById('hdr-sub').textContent = 'No data loaded — run inject_data.js after process_chargebacks.js';"
+  );
+
+  fs.writeFileSync(CHARGEBACKS_HTML, chtml);
+  console.log(`Done — updated ${CHARGEBACKS_HTML}`);
+  console.log(`File size: ${(fs.statSync(CHARGEBACKS_HTML).size / 1024).toFixed(0)} KB`);
+} else {
+  console.log('Skipping chargebacks page (chargebacks_data.json or chargebacks.html not found)');
+}
+
 // ─── CLEAR FIRESTORE COMPLETIONS ──────────────────────────────────────────
 // Every new report wipes previous checked-off state so the team starts fresh.
 // Pass --keep-completions on the command line to skip this step.
