@@ -262,6 +262,7 @@ tr.row-done td.done-cell{opacity:1}
     <span id="lbl-updated" style="font-size:11px;color:var(--muted)"></span>
     <a href="materials.html" class="btn btn-secondary btn-sm" style="text-decoration:none;display:inline-block">Materials →</a>
     <a href="chargebacks.html" class="btn btn-secondary btn-sm" style="text-decoration:none;display:inline-block">Chargebacks →</a>
+    <a href="postfails.html" class="btn btn-secondary btn-sm" style="text-decoration:none;display:inline-block">Post Fails →</a>
     <button class="btn btn-secondary btn-sm" onclick="showUpload()">Load Data</button>
     <button class="btn btn-success btn-sm" onclick="exportCSV()">Export CSV</button>
   </div>
@@ -1500,6 +1501,10 @@ function toast(msg, type='info') {
     }, err => console.warn('Firestore error:', err));
   } catch(e) { console.warn('Firebase init failed:', e); }
 })();
+
+
+
+
 
 
 

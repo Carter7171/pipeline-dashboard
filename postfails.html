@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Post Fail Tracker · AFS Pipeline</title>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;
+  --text:#e6edf3;--muted:#8b949e;--primary:#58a6ff;
+  --success:#3fb950;--warning:#d29922;--danger:#f85149;--purple:#bc8cff;
+  --orange:#f0883e;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:14px;padding:0 22px 40px}
+a{color:var(--primary);text-decoration:none}
+a:hover{text-decoration:underline}
+
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);margin-bottom:18px}
+.hdr-title{font-size:18px;font-weight:700}
+.hdr-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.hdr-nav{display:flex;align-items:center;gap:10px}
+.nav-btn{font-size:13px;color:var(--primary);padding:7px 14px;border:1px solid var(--border);border-radius:6px;background:var(--surface)}
+.nav-btn:hover{background:var(--surface2);text-decoration:none}
+
+.search-bar{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.search-input{flex:1;min-width:240px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:6px;font-size:14px;outline:none}
+.search-input:focus{border-color:var(--primary)}
+.search-hint{font-size:11px;color:var(--muted)}
+
+.filter-bar{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.filter-label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.filter-chips{display:flex;gap:5px;flex-wrap:wrap}
+.chip{padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--muted);transition:all .15s;user-select:none}
+.chip:hover{color:var(--text)}
+.chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.chip.active.danger-chip{background:var(--danger);border-color:var(--danger)}
+.chip.active.success-chip{background:var(--success);border-color:var(--success)}
+.chip.active.blue-chip{background:var(--primary);border-color:var(--primary)}
+.chip.active.muted-chip{background:#444c56;border-color:#444c56;color:#fff}
+.fdivider{width:1px;height:18px;background:var(--border)}
+
+/* Multi-select job type */
+.ms-wrap{position:relative;display:inline-block}
+.ms-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer;min-width:140px;max-width:220px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ms-btn:hover{border-color:var(--primary)}
+.ms-caret{float:right;color:var(--muted);margin-left:6px}
+.ms-panel{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px;min-width:200px;max-height:320px;overflow-y:auto;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.ms-panel.open{display:block}
+.ms-opt{display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:12px;color:var(--text);cursor:pointer;border-radius:4px;user-select:none}
+.ms-opt:hover{background:var(--surface2)}
+.ms-opt input{margin:0;cursor:pointer;accent-color:var(--primary)}
+.ms-divider{height:1px;background:var(--border);margin:4px 0}
+.ms-action{font-size:11px;color:var(--primary);padding:5px 10px;cursor:pointer;font-weight:600}
+.ms-action:hover{background:var(--surface2);border-radius:4px}
+
+/* Summary cards */
+.summary-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:1100px){.summary-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.summary-grid{grid-template-columns:repeat(2,1fr)}}
+.sum-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;position:relative;overflow:hidden}
+.sum-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
+.sum-card.c-total::before{background:var(--danger)}
+.sum-card.c-unresolved::before{background:var(--danger)}
+.sum-card.c-addressed::before{background:var(--success)}
+.sum-card.c-started::before{background:var(--primary)}
+.sum-card.c-notissue::before{background:var(--muted)}
+.sum-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.sum-val{font-size:28px;font-weight:800;line-height:1.1}
+.sum-sub{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* Table */
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:20px}
+.table-toolbar{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.toolbar-info{font-size:12px;color:var(--muted)}
+.btn-sm{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer}
+.btn-sm:hover{border-color:var(--primary)}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:var(--surface2);color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--text)}
+td{padding:8px 12px;border-bottom:1px solid rgba(48,54,61,.5);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.025)}
+.sort-ind{color:var(--primary);margin-left:3px}
+.empty{text-align:center;color:var(--muted);padding:40px 0;font-style:italic}
+
+/* Status badges */
+.st-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:10px;font-size:10px;font-weight:700;white-space:nowrap}
+.st-unresolved{background:rgba(248,81,73,.15);color:#f85149}
+.st-issue_addressed{background:rgba(63,185,80,.15);color:#3fb950}
+.st-service_started{background:rgba(88,166,255,.15);color:#58a6ff}
+.st-not_an_issue{background:rgba(139,148,158,.15);color:#8b949e}
+
+/* Action buttons */
+.action-btns{display:flex;gap:4px;flex-wrap:wrap}
+.act-btn{padding:3px 8px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid;background:transparent;transition:all .15s;white-space:nowrap}
+.act-btn.addressed{color:var(--success);border-color:var(--success)}
+.act-btn.addressed:hover{background:var(--success);color:#fff}
+.act-btn.started{color:var(--primary);border-color:var(--primary)}
+.act-btn.started:hover{background:var(--primary);color:#fff}
+.act-btn.notissue{color:var(--muted);border-color:var(--border)}
+.act-btn.notissue:hover{background:var(--muted);color:#fff}
+.act-btn.reopen{color:var(--warning);border-color:var(--warning)}
+.act-btn.reopen:hover{background:var(--warning);color:#fff}
+.act-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Row resolved state */
+tr.row-resolved td{opacity:.5}
+tr.row-resolved td.action-col,tr.row-resolved td.status-col{opacity:1}
+
+/* Pagination */
+.pager{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
+.pager-btns{display:flex;gap:4px}
+.pg-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 9px;border-radius:4px;font-size:11px;cursor:pointer;min-width:28px}
+.pg-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+.pg-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.pg-btn:disabled{opacity:.3;cursor:not-allowed}
+
+/* Notes modal */
+.notes-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:900;align-items:center;justify-content:center}
+.notes-overlay.open{display:flex}
+.notes-modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:min(760px,95vw);max-height:80vh;display:flex;flex-direction:column}
+.notes-modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.notes-modal-hdr h3{font-size:14px;font-weight:700}
+.notes-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
+.notes-close:hover{color:var(--text)}
+.notes-body{overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+.note-card{background:var(--surface2);border-radius:6px;padding:10px 14px}
+.note-meta{font-size:10px;color:var(--muted);margin-bottom:6px;display:flex;gap:10px}
+.note-type{font-weight:700}
+.note-text{font-size:12px;white-space:pre-wrap;word-break:break-word;line-height:1.55}
+.pf-note-card{border:1px solid var(--danger);background:rgba(248,81,73,.06)}
+.notes-empty{text-align:center;color:var(--muted);padding:20px;font-style:italic}
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="pw-gate" style="display:none;position:fixed;inset:0;background:#0d1117;z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div style="color:#e6edf3;font-family:system-ui,sans-serif;font-size:1.5rem;font-weight:700;margin-bottom:4px">AFS Pipeline Dashboard</div>
+  <input id="pw-input" type="password" placeholder="Enter password" autocomplete="current-password"
+    style="padding:10px 16px;border-radius:8px;border:1px solid #30363d;background:#161b22;color:#e6edf3;font-size:1rem;width:260px;outline:none"
+    onkeydown="if(event.key==='Enter')checkPw()">
+  <button onclick="checkPw()" style="padding:10px 28px;border-radius:8px;border:none;background:#1f6feb;color:#fff;font-size:1rem;font-weight:600;cursor:pointer">Unlock</button>
+  <div id="pw-err" style="color:#f85149;font-size:.85rem;min-height:1.2em"></div>
+</div>
+<script>
+(function(){
+  const KEY='afs_dash_auth',PWD='afs2025';
+  if(sessionStorage.getItem(KEY)==='1'){return;}
+  const gate=document.getElementById('pw-gate');
+  gate.style.display='flex'; document.body.style.overflow='hidden';
+  window.checkPw=function(){
+    const v=document.getElementById('pw-input').value;
+    if(v===PWD){sessionStorage.setItem(KEY,'1');gate.style.display='none';document.body.style.overflow='';}
+    else{document.getElementById('pw-err').textContent='Incorrect password.';document.getElementById('pw-input').value='';}
+  };
+  setTimeout(()=>document.getElementById('pw-input').focus(),50);
+})();
+</script>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div>
+    <div class="hdr-title">Post Fail Tracker</div>
+    <div class="hdr-sub" id="hdr-sub">No data loaded</div>
+  </div>
+  <div class="hdr-nav">
+    <a href="index.html" class="nav-btn">← Pipeline</a>
+    <a href="materials.html" class="nav-btn">Materials →</a>
+    <a href="chargebacks.html" class="nav-btn">Chargebacks →</a>
+  </div>
+</div>
+
+<!-- SEARCH -->
+<div class="search-bar">
+  <input id="pf-search" class="search-input" type="text" placeholder="Search order #, customer, inspector, or issue..." oninput="applyFilters()">
+  <span class="search-hint">Try: "CG603209", "Ron Wahl", "silicone", "DR Horton"</span>
+</div>
+
+<!-- FILTERS -->
+<div class="filter-bar">
+  <span class="filter-label">Store</span>
+  <div class="filter-chips" id="fc-store"></div>
+  <div class="fdivider"></div>
+  <span class="filter-label">Job Type</span>
+  <div class="ms-wrap">
+    <button class="ms-btn" id="ms-jt-btn" type="button" onclick="toggleJTPanel(event)">All Job Types <span class="ms-caret">▾</span></button>
+    <div class="ms-panel" id="ms-jt-panel"></div>
+  </div>
+  <div class="fdivider"></div>
+  <span class="filter-label">Status</span>
+  <div class="filter-chips">
+    <div class="chip active" data-st="all"              onclick="setStatusFilter(this)">All</div>
+    <div class="chip danger-chip" data-st="unresolved"  onclick="setStatusFilter(this)">Unresolved</div>
+    <div class="chip success-chip" data-st="issue_addressed" onclick="setStatusFilter(this)">Issue Addressed</div>
+    <div class="chip blue-chip" data-st="service_started"    onclick="setStatusFilter(this)">Service Started</div>
+    <div class="chip muted-chip" data-st="not_an_issue"      onclick="setStatusFilter(this)">Not an Issue</div>
+  </div>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="summary-grid">
+  <div class="sum-card c-total">
+    <div class="sum-label">Total Post Fails</div>
+    <div class="sum-val" id="sum-total">—</div>
+    <div class="sum-sub" id="sum-total-sub">across all stores</div>
+  </div>
+  <div class="sum-card c-unresolved">
+    <div class="sum-label">Unresolved</div>
+    <div class="sum-val" id="sum-unresolved">—</div>
+    <div class="sum-sub" id="sum-unresolved-sub">need action</div>
+  </div>
+  <div class="sum-card c-addressed">
+    <div class="sum-label">Issue Addressed</div>
+    <div class="sum-val" id="sum-addressed">—</div>
+    <div class="sum-sub">resolved</div>
+  </div>
+  <div class="sum-card c-started">
+    <div class="sum-label">Service Started</div>
+    <div class="sum-val" id="sum-started">—</div>
+    <div class="sum-sub">in progress</div>
+  </div>
+  <div class="sum-card c-notissue">
+    <div class="sum-label">Not an Issue</div>
+    <div class="sum-val" id="sum-notissue">—</div>
+    <div class="sum-sub">dismissed</div>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div class="table-card">
+  <div class="table-toolbar">
+    <div class="toolbar-info" id="detail-info">—</div>
+    <button class="btn-sm" onclick="exportCSV()">Export CSV</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="status-col" style="width:120px">Status</th>
+          <th onclick="sortBy('orderNumber')">Order # <span class="sort-ind" id="si-orderNumber"></span></th>
+          <th onclick="sortBy('customerName')">Customer <span class="sort-ind" id="si-customerName"></span></th>
+          <th onclick="sortBy('store')">Store <span class="sort-ind" id="si-store"></span></th>
+          <th onclick="sortBy('jobType')">Job Type <span class="sort-ind" id="si-jobType"></span></th>
+          <th onclick="sortBy('scheduledInstallDate')">Install Date <span class="sort-ind" id="si-scheduledInstallDate"></span></th>
+          <th onclick="sortBy('postFailInspector')">Inspector <span class="sort-ind" id="si-postFailInspector"></span></th>
+          <th onclick="sortBy('postFailDate')">Fail Date <span class="sort-ind" id="si-postFailDate">↓</span></th>
+          <th>Issues Found</th>
+          <th class="action-col" style="width:200px">Action</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <tr><td colspan="10" class="empty">No data loaded</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pager">
+    <span id="pager-info">—</span>
+    <div class="pager-btns" id="pager-btns"></div>
+  </div>
+</div>
+
+<!-- NOTES MODAL -->
+<div class="notes-overlay" id="notes-overlay" onclick="if(event.target===this)closeNotes()">
+  <div class="notes-modal">
+    <div class="notes-modal-hdr">
+      <h3>Order Notes — <span id="notes-order-num"></span></h3>
+      <button class="notes-close" onclick="closeNotes()">✕</button>
+    </div>
+    <div class="notes-body" id="notes-body"></div>
+  </div>
+</div>
+
+<script>
+// ─── FIREBASE ────────────────────────────────────────────────────────────────
+let _db = null;
+(function(){
+  const cfg = {
+    apiKey: "AIzaSyAKbvWfKY3TE1y-SnqdRODoztmpkfqx4Pc",
+    authDomain: "afs-pipeline.firebaseapp.com",
+    projectId: "afs-pipeline",
+    storageBucket: "afs-pipeline.firebasestorage.app",
+    messagingSenderId: "623445537981",
+    appId: "1:623445537981:web:8c50fdf7b82f3cccf573d4"
+  };
+  try {
+    firebase.initializeApp(cfg);
+    _db = firebase.firestore();
+    _db.collection('postfail_status').onSnapshot(snapshot => {
+      S.statuses = {};
+      snapshot.docs.forEach(d => { S.statuses[d.id] = d.data().status; });
+      if (S.rawData.length) applyFilters();
+    }, err => console.warn('Firestore error:', err));
+  } catch(e) { console.warn('Firebase init failed:', e); }
+})();
+
+function setStatus(orderNumber, status) {
+  if (!_db) return;
+  if (status === null) {
+    _db.collection('postfail_status').doc(orderNumber).delete();
+  } else {
+    _db.collection('postfail_status').doc(orderNumber).set({
+      status,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+}
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const S = {
+  rawData: [],
+  filtered: [],
+  statuses: {},         // orderNumber → status string (from Firestore)
+  allJobTypes: [],
+  activeJobTypes: new Set(),
+  allStores: [],
+  activeStores: new Set(),
+  statusFilter: 'all',  // 'all' | 'unresolved' | 'issue_addressed' | 'service_started' | 'not_an_issue'
+  sort: { field: 'postFailDate', dir: 'desc' },
+  page: 1, pageSize: 50,
+};
+
+function fmtDate(s) {
+  if (!s) return '—';
+  const d = new Date(s + 'T12:00:00');
+  if (isNaN(d)) return s;
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ─── LOAD DATA ───────────────────────────────────────────────────────────────
+function loadPostFails(records) {
+  S.rawData = records;
+  const stores = [...new Set(records.map(r=>r.store).filter(Boolean))].sort();
+  const jobTypes = [...new Set(records.map(r=>r.jobType).filter(Boolean))].sort();
+  S.allStores = stores;
+  S.activeStores = new Set(stores);
+  S.allJobTypes = jobTypes;
+  S.activeJobTypes = new Set(jobTypes);
+
+  // Store chips
+  const sc = document.getElementById('fc-store');
+  sc.innerHTML = stores.map(s =>
+    `<div class="chip active" data-store="${s}" onclick="toggleStore(this)">${s}</div>`
+  ).join('');
+
+  // Job type panel
+  buildJTPanel(jobTypes);
+
+  const dateRange = records.length ? (() => {
+    const dates = records.map(r=>r.postFailDate).filter(Boolean).sort();
+    return `${dates[0]} → ${dates[dates.length-1]}`;
+  })() : '';
+
+  document.getElementById('hdr-sub').textContent =
+    `${records.length.toLocaleString()} post fails · ${stores.join(', ')} · ${dateRange} · loaded ${new Date().toLocaleString()}`;
+
+  applyFilters();
+}
+
+// ─── JOB TYPE MULTI-SELECT ───────────────────────────────────────────────────
+function buildJTPanel(jobTypes) {
+  const panel = document.getElementById('ms-jt-panel');
+  S.allJobTypes = jobTypes;
+  S.activeJobTypes = new Set(jobTypes);
+  const items = jobTypes.map(jt => {
+    const safe = jt.replace(/"/g,'&quot;');
+    return `<label class="ms-opt"><input type="checkbox" data-jt="${safe}" checked onchange="toggleJT(this)"> ${jt}</label>`;
+  }).join('');
+  panel.innerHTML =
+    `<div class="ms-action" onclick="jtSelectAll(true)">Select All</div>
+     <div class="ms-action" onclick="jtSelectAll(false)">Clear All</div>
+     <div class="ms-divider"></div>` + items;
+  updateJTBtn();
+}
+function toggleJTPanel(e) {
+  e.stopPropagation();
+  const panel = document.getElementById('ms-jt-panel');
+  panel.classList.toggle('open');
+}
+function toggleJT(cb) {
+  const jt = cb.dataset.jt.replace(/&quot;/g,'"');
+  if (cb.checked) S.activeJobTypes.add(jt);
+  else S.activeJobTypes.delete(jt);
+  updateJTBtn(); applyFilters();
+}
+function jtSelectAll(on) {
+  S.activeJobTypes = on ? new Set(S.allJobTypes) : new Set();
+  document.querySelectorAll('#ms-jt-panel input[type=checkbox]').forEach(cb => cb.checked = on);
+  updateJTBtn(); applyFilters();
+}
+function updateJTBtn() {
+  const btn = document.getElementById('ms-jt-btn');
+  const n = S.activeJobTypes.size, total = S.allJobTypes.length;
+  btn.innerHTML = (n === total ? 'All Job Types' : n === 0 ? 'No Job Types' : `${n} of ${total} Job Types`) +
+    ' <span class="ms-caret">▾</span>';
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.ms-wrap')) {
+    document.querySelectorAll('.ms-panel.open').forEach(p => p.classList.remove('open'));
+  }
+});
+
+// ─── FILTERS ────────────────────────────────────────────────────────────────
+function toggleStore(chip) {
+  const s = chip.dataset.store;
+  if (S.activeStores.has(s)) {
+    if (S.activeStores.size === 1) return;
+    S.activeStores.delete(s);
+  } else {
+    S.activeStores.add(s);
+  }
+  chip.classList.toggle('active', S.activeStores.has(s));
+  S.page = 1; applyFilters();
+}
+function setStatusFilter(chip) {
+  document.querySelectorAll('.filter-bar .chip[data-st]').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  S.statusFilter = chip.dataset.st;
+  S.page = 1; applyFilters();
+}
+
+function applyFilters() {
+  const q = (document.getElementById('pf-search').value||'').toLowerCase().trim();
+  const data = S.rawData.filter(r => {
+    if (S.allStores.length && !S.activeStores.has(r.store)) return false;
+    if (S.allJobTypes.length && !S.activeJobTypes.has(r.jobType)) return false;
+    const status = S.statuses[r.orderNumber] || 'unresolved';
+    if (S.statusFilter !== 'all' && status !== S.statusFilter) return false;
+    if (q) {
+      const hay = [r.orderNumber, r.customerName, r.jobType, r.store,
+        r.postFailInspector, r.lot, r.tract, (r.postFailIssues||[]).join(' ')].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  S.filtered = sortRows(data);
+  updateSummary();
+  renderTable();
+}
+
+// ─── SUMMARY ────────────────────────────────────────────────────────────────
+function updateSummary() {
+  const total = S.rawData.length;
+  const counts = { unresolved:0, issue_addressed:0, service_started:0, not_an_issue:0 };
+  S.rawData.forEach(r => {
+    const s = S.statuses[r.orderNumber] || 'unresolved';
+    if (counts[s] !== undefined) counts[s]++;
+  });
+  document.getElementById('sum-total').textContent     = total.toLocaleString();
+  document.getElementById('sum-total-sub').textContent = `${S.filtered.length.toLocaleString()} in view`;
+  document.getElementById('sum-unresolved').textContent = counts.unresolved.toLocaleString();
+  document.getElementById('sum-addressed').textContent  = counts.issue_addressed.toLocaleString();
+  document.getElementById('sum-started').textContent    = counts.service_started.toLocaleString();
+  document.getElementById('sum-notissue').textContent   = counts.not_an_issue.toLocaleString();
+}
+
+// ─── TABLE ───────────────────────────────────────────────────────────────────
+function sortRows(data) {
+  const { field, dir } = S.sort;
+  return [...data].sort((a,b) => {
+    let va = a[field], vb = b[field];
+    if (field === 'postFailDate' || field === 'scheduledInstallDate') {
+      const da = va ? new Date(va) : new Date(0);
+      const db = vb ? new Date(vb) : new Date(0);
+      return dir === 'asc' ? da - db : db - da;
+    }
+    va = String(va||'').toLowerCase(); vb = String(vb||'').toLowerCase();
+    const c = va.localeCompare(vb); return dir === 'asc' ? c : -c;
+  });
+}
+function sortBy(field) {
+  S.sort.dir = (S.sort.field === field && S.sort.dir === 'asc') ? 'desc' : 'asc';
+  S.sort.field = field;
+  document.querySelectorAll('.sort-ind').forEach(el => el.textContent = '');
+  const ind = document.getElementById(`si-${field}`);
+  if (ind) ind.textContent = S.sort.dir === 'asc' ? '↑' : '↓';
+  S.filtered = sortRows(S.filtered);
+  S.page = 1; renderTable();
+}
+
+function statusBadge(status) {
+  const map = {
+    unresolved:      ['st-unresolved',     '⚠ Unresolved'],
+    issue_addressed: ['st-issue_addressed','✓ Addressed'],
+    service_started: ['st-service_started','🔧 In Progress'],
+    not_an_issue:    ['st-not_an_issue',   '— Not Issue'],
+  };
+  const [cls, label] = map[status] || map.unresolved;
+  return `<span class="st-badge ${cls}">${label}</span>`;
+}
+
+function actionBtns(orderNumber, status) {
+  if (status && status !== 'unresolved') {
+    return `<div class="action-btns">
+      <button class="act-btn reopen" onclick="setStatus('${orderNumber}',null)">↩ Reopen</button>
+    </div>`;
+  }
+  return `<div class="action-btns">
+    <button class="act-btn addressed" onclick="setStatus('${orderNumber}','issue_addressed')">✓ Addressed</button>
+    <button class="act-btn started"   onclick="setStatus('${orderNumber}','service_started')">🔧 Started</button>
+    <button class="act-btn notissue"  onclick="setStatus('${orderNumber}','not_an_issue')">— Not Issue</button>
+  </div>`;
+}
+
+function renderTable() {
+  const total = S.filtered.length;
+  const start = (S.page-1) * S.pageSize;
+  const end   = Math.min(start + S.pageSize, total);
+  const page  = S.filtered.slice(start, end);
+
+  document.getElementById('detail-info').textContent =
+    `${total.toLocaleString()} post fail${total!==1?'s':''} matching filters`;
+
+  const tbody = document.getElementById('table-body');
+  if (!page.length) {
+    tbody.innerHTML = `<tr><td colspan="10" class="empty">No post fails match the current filters</td></tr>`;
+  } else {
+    tbody.innerHTML = page.map(r => {
+      const status = S.statuses[r.orderNumber] || 'unresolved';
+      const resolved = status !== 'unresolved';
+      const issues = r.postFailIssues && r.postFailIssues.length
+        ? escHtml(r.postFailIssues[0].substring(0,100)) + (r.postFailIssues.length > 1 ? ` <span style="color:var(--muted)">(+${r.postFailIssues.length-1} more)</span>` : '')
+        : `<span style="color:var(--muted)">—</span>`;
+      return `<tr${resolved?' class="row-resolved"':''}>
+        <td class="status-col">${statusBadge(status)}</td>
+        <td ondblclick="showNotes('${escHtml(r.orderNumber)}')" title="Double-click to view notes" style="cursor:pointer">
+          <code style="font-size:11px;color:var(--muted)">${escHtml(r.orderNumber||'—')}</code>
+        </td>
+        <td>${escHtml(r.customerName||'—')}</td>
+        <td><strong>${escHtml(r.store||'—')}</strong></td>
+        <td>${escHtml(r.jobType||'—')}</td>
+        <td style="white-space:nowrap">${fmtDate(r.scheduledInstallDate)}</td>
+        <td style="color:var(--muted)">${escHtml(r.postFailInspector||'—')}</td>
+        <td style="white-space:nowrap">${fmtDate(r.postFailDate)}</td>
+        <td style="max-width:300px">${issues}</td>
+        <td class="action-col">${actionBtns(r.orderNumber, status)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Pager
+  const totalPages = Math.ceil(total / S.pageSize);
+  document.getElementById('pager-info').textContent = total
+    ? `Showing ${(start+1).toLocaleString()}–${end.toLocaleString()} of ${total.toLocaleString()}`
+    : 'No results';
+  const pb = document.getElementById('pager-btns');
+  pb.innerHTML = '';
+  if (totalPages > 1) {
+    const mk = (label, disabled, cb, active) => {
+      const b = document.createElement('button');
+      b.className = 'pg-btn' + (active?' active':'');
+      b.textContent = label; b.disabled = disabled; b.onclick = cb;
+      pb.appendChild(b);
+    };
+    mk('←', S.page===1, ()=>{S.page--;renderTable();});
+    const sp=Math.max(1,S.page-3), ep=Math.min(totalPages,sp+6);
+    for (let i=sp;i<=ep;i++) { const pg=i; mk(String(i),false,()=>{S.page=pg;renderTable();},i===S.page); }
+    mk('→', S.page===totalPages, ()=>{S.page++;renderTable();});
+  }
+}
+
+// ─── NOTES MODAL ─────────────────────────────────────────────────────────────
+function showNotes(orderNumber) {
+  const record = S.rawData.find(r => r.orderNumber === orderNumber);
+  document.getElementById('notes-order-num').textContent = orderNumber;
+  const body = document.getElementById('notes-body');
+  const notes = record && record.notes ? [...record.notes] : [];
+  if (!notes.length) {
+    body.innerHTML = `<div class="notes-empty">No notes recorded for this order.</div>`;
+  } else {
+    body.innerHTML = notes.map(n => {
+      const isPF = /post fail/i.test(n.comment||'') && !/post pass|pre fail|pre pass/i.test(n.comment||'');
+      return `<div class="note-card${isPF?' pf-note-card':''}">
+        <div class="note-meta">
+          <span class="note-type">${escHtml(n.type||'Note')}${isPF?' <span style="color:var(--danger)">⚠ Post Fail</span>':''}</span>
+          ${n.date ? `<span>${escHtml(n.date)}</span>` : ''}
+        </div>
+        <div class="note-text">${escHtml(n.comment||'')}</div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('notes-overlay').classList.add('open');
+}
+function closeNotes() { document.getElementById('notes-overlay').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNotes(); });
+
+// ─── EXPORT ──────────────────────────────────────────────────────────────────
+function exportCSV() {
+  if (!S.filtered.length) { alert('No data to export'); return; }
+  const hdr = ['Order #','Customer','Store','Job Type','Install Date','Inspector','Post Fail Date','Issues','Status','Lot','Tract'];
+  const rows = S.filtered.map(r => [
+    r.orderNumber, r.customerName, r.store, r.jobType, r.scheduledInstallDate,
+    r.postFailInspector, r.postFailDate, (r.postFailIssues||[]).join('; '),
+    S.statuses[r.orderNumber] || 'unresolved', r.lot, r.tract
+  ]);
+  const csv = [hdr,...rows].map(row=>row.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `postfails_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+// PRELOADED_POSTFAILS is injected by inject_data.js
+
+
+
+// ──── AUTO-EMBEDDED POSTFAILS (generated 2026-06-10) ────
+const PRELOADED_POSTFAILS = [{"orderNumber":"CG615169","customerName":"PULTE HOMES OF LOUISV MS 1050","store":"005","jobType":"CARPET - CUT PILE NO PATTERN","scheduledInstallDate":"2026-06-08","currentStatus":"INSPECTION FAILED - HALT","lot":"95","tract":"Creekstone TCG 4 Package","postFailDate":"2026-06-09","postFailInspector":"Michael Dunn","postFailNote":"Michael Dunn 6/9/2026, 11:05:14 AM\nPost Failed:has electric in house HVAC is not working carper has been installed and vacuumed issues are \n1: seam in loft area is extremely visible installer will need to return \n2:from landing down looks like it was not vacuumed at all— when installer returns he can clean his mess \nTemp:75","postFailIssues":[],"notes":[{"type":"Order Internal","date":"3/5/2026","comment":"03/05/26 - 13:42:55 : mercedes.shaw genpo line 1\n \nEmailed Super: Hello Darrien,\nCarpet installer was on site this morning and the 2 soft spots noted on Pre are not taken care of. Please let us know when this is ready so we can go back. Also, my installer noticed a sign written on the subfloor in Spanish asking \"to screw down\", just wanted to make sure this is not for us to do?/ \nInstaller will do sanding while at JS today and will bring all material back to go back once advised by builder issues have been fixed - 06/01/26 - 10:23:32 : yaima.carmona \n \nRTI sent for holding material - 06/05/26 - 08:48:26 : yaima.carmona \n \nFramers ended up going to fix subfloor issues, Cpt installer had to pull tack strip installed already; I called Darrien and talk to him and he'll ask framers to be careful and not get Cpt dirty, installer will try to work around, per Builder, this shouldn't take too long; installer will advise if job needs to be completed tomorrow - 06/08/26 - 10:49:16 : yaima.carmona"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"3/5/2026","comment":"mercedes.shaw:: TQC selections verified\r\nOriginal PO amount $1921.06\r\nBreak down $\r\nMargin 18.42% Ok to SCH"},{"type":"Work Order Custom","date":"12/5/2025","comment":"******Cpt Install needs to go to JUAN (HECTOR MONTECINO), he did the sanding****\n \nFIRST FLOOR - SLAB \n\nSECOND FLOOR - WOOD SUBFLOOR \n________________________________________\nDylan Rose 5/28/2026, 12:51:25 PM\nPre CPT fail\n\n-House has controlled air and electricity \n\tAll the baseboards and door casings have been installed \n\tWalls have been primed \nIssues: \nNote: There is about a 10x10 area in the basement where the slab is holding water \n1. Hard surfaces need to be installed in the master bathroom \n2. 4 high subfloor seams that need to be sanded \n3. There are 2 soft spots in the subfloor. 1 along the back wall in bedroom three and another soft spot in the closet of bedroom two . Both these areas will need to be addressed by the builder \n4. Large board sitting in the loft that will need to be moved \nLabor/ materials \nRh=57.7\n\t1 hour to sand subfloor seams \nT=61 \n_____________________________________________________________TEXT DARRIEN ON ISSUES FOR THIS CARPET INSTALL SCHEDULED FOR  6/1 ALSO ASKED ABOUT IF CABINETS WERE IN THE MASTER BATH SO WE CAN COMPLETE THE HARD SURFACE IN THAT AREA - 05/29/26 - 11:51:34 : tara.abbott \nPer Darrien he will take care of issues and wants us to proceed with install Monday  - 05/29/26 - 12:04:52 : tara.abbott \n \nPer Darrien, in response to soft spots for Cpt install: Good Morning, \nI took a look at it friday, we can proceed with install. \nThanks, \n \n________________________________________\nMichael Dunn 6/9/2026, 11:05:14 AM\nPost Failed:has electric in house HVAC is not working carper has been installed and vacuumed issues are \n1: seam in loft area is extremely visible installer will need to return \n2:from landing down looks like it was not vacuumed at all— when installer returns he can clean his mess \nTemp:75"}]},{"orderNumber":"CG622517","customerName":"PULTE HOMES OF LOUISV MS 1050","store":"005","jobType":"TILE - WALLS","scheduledInstallDate":"2026-06-03","currentStatus":"SCHEDULED","lot":"180","tract":"CREEKSTONE","postFailDate":"2026-06-09","postFailInspector":"Michael Dunn","postFailNote":"Michael Dunn 6/9/2026, 10:48:15 AM\nPost Failed:in progress it appears that they run short on tile still a couple pieces and the bannister seal plate","postFailIssues":[],"notes":[{"type":"Line Note","date":"","comment":"Need mataerial ordered. JOb in progress. Not enough tile ordered. 06/09/26 - 07:52:25 : scott.ridge \nNeed on carton."},{"type":"Work Order Custom","date":"2/17/2026","comment":"KERDI TRAY & SINGLE STAGE PAN WITH KERDI CURB\nKERDI ABOVE & BELOW SINGLE STAGE PAN\nKERDI & TILE TO CEILING\nCORNER SHELF ON EXTERIOR WALL NEXT TO SHOWER SEAT\nCORNER SHELF TO BE AT 52\" ABOVE FINISHED FLOOR\n________________________________________\nMichael Wahl 5/29/2026, 11:02:11 AM\nPre failed\n\n\tCannot get diagram to load\n\tElectric in laundry\n\tWater at model\n\t1 shower head, 1 mix valve\n1. Drywall paper down throughout\n2. No hvac\nHumidity 61\nTemp 72\n________________________________________\nMichael Dunn 6/9/2026, 10:48:15 AM\nPost Failed:in progress it appears that they run short on tile still a couple pieces and the bannister seal plate"}]},{"orderNumber":"CG622518","customerName":"PULTE HOMES OF LOUISV MS 1050","store":"005","jobType":"RESILIENT - LV CLICK","scheduledInstallDate":"2026-06-08","currentStatus":"COMPLETED - ADDL LABOR","lot":"180","tract":"CREEKSTONE","postFailDate":"2026-06-09","postFailInspector":"Michael Dunn","postFailNote":"Michael Dunn 6/9/2026, 10:39:35 AM\nPost Failed:has electric in house (electric is being serviced don’t know about HVAC)lvt has been installed and covered with necessary transitions mos in basement 1/2 box and a transition issue is \n1: door casing still not installed in master bathroom so installer didn’t install transition and may have stopped lvt short will need all material on site to repair when door is installed \nTemp:75","postFailIssues":[],"notes":[{"type":"Job Notes","date":"6/8/2026","comment":"________________________________________\nLou - H&S Flooring (Sandra) 6/8/2026, 10:26:46 PM\n1. Seam sanding labor needs added"},{"type":"Work Order Custom","date":"2/17/2026","comment":"FIRST & SECOND FLOOR - WOOD SUBFLOOR \n\nFLOAT INSTALLATION\n\nRANDOM WOOD PATTERN \n\nFIRST FLOOR - ACROSS JOISTS \n\nSECOND FLOOR - 1/3 OFFSET PARALLEL TO VANITY \n\nTHRESHOLD AT CARPET \n________________________________________\nMichael Wahl 5/29/2026, 11:03:37 AM\nPre failed\n \n\tElectric in laundry\n1. Drywall paper down throughout\n2. No hvac\nHumidity 61\nTemp 72\n________________________________________\nMichael Wahl 6/2/2026, 9:40:04 AM\nPre failed\n \n\tElectric on temp\n\tWalls primed\n\tCabinets installed\n1. Missing door casing at laundry and master bath\n2. Seams need to be sanded\n3. No hvac\nMoisture 9\nHumidity 57\nTemp 70\n________________________________________\nMichael Dunn 6/9/2026, 10:39:35 AM\nPost Failed:has electric in house (electric is being serviced don’t know about HVAC)lvt has been installed and covered with necessary transitions mos in basement 1/2 box and a transition issue is \n1: door casing still not installed in master bathroom so installer didn’t install transition and may have stopped lvt short will need all material on site to repair when door is installed \nTemp:75"}]},{"orderNumber":"CG603209","customerName":"ELITE HOMES","store":"005","jobType":"TILE - WALLS","scheduledInstallDate":"2026-06-05","currentStatus":"JOB CUT","lot":"90","tract":"Royal Oaks","postFailDate":"2026-06-08","postFailInspector":"Ron Wahl","postFailNote":"Ron Wahl 6/8/2026, 1:10:59 PM\nPost Fail.\n\n6 tiles on site in basement. 1/2 bag grout. HVAC in and running.\n\n1. FP tile is not lipping the FP insert it’s only cut to the edge. (I looked for FP insert cover to check but could not find one.)\n2. Not sure what is going on with the pattern above FP order calls for surround.\n3. No black qtr at floor. \n4. This likely needs to be redone and laid to the insert cover. \nTemp 70\nRH 51","postFailIssues":["FP tile is not lipping the FP insert it’s only cut to the edge. (I looked for FP insert cover to check but could not find one.)","Not sure what is going on with the pattern above FP order calls for surround.","No black qtr at floor.","This likely needs to be redone and laid to the insert cover."],"notes":[{"type":"Line Note","date":"","comment":"Someone did a return of this material to CG600786 but per George this material was never returned to the warehouse. I put this back on status None and emailing rep. Regardless this needs to stay costed to the job.05/21/26 - 09:59:53 : todd.gies"},{"type":"Line Note","date":"","comment":"02/19/26 - 10:24:13 : nina.williamson - lines 1,3 material ordered"},{"type":"Line Note","date":"","comment":"Someone did a return of this material to CG600786 but per George this material was never returned to the warehouse. I put this back on status None and emailing rep. Regardless this needs to stay costed to the job.05/21/26 - 09:59:53 : todd.gies \n\nNever mind. I am redoing the return and scraping out as lost in the warehouse.05/21/26 - 12:54:58 : todd.gies"},{"type":"Picking Ticket Custom","date":"5/21/2026","comment":"05/21/26 - 10:07:49 : george.crone \nIt's not properly RTI'd on the previous job. The box does not exist. You're not having the warehouse."},{"type":"Work Order Custom","date":"1/14/2026","comment":"NOTES FOR SHEET Fireplace\nONE ROW OF TILE AROUND FIREBOX. INSTALL VERTICAL RUNNING BOND. BLACK SCHLUTER AROUND FIREBOX. BLACK QUARTER ROUND FROM FIREBOX TO FLOORING. GARAGE CODE: 0090 \n________________________________________\nRon Wahl 5/15/2026, 11:17:19 AM\nPre Fail.\nElectric at laundry.\n1. No hvac.\n2. No water (can get at model) \n3. Left side of FP insert is lipped 3/16ths. And right side is recessed past drywall 1/8th inch. Needs to be adjusted by builder. \n4. Mantle has not been painted yet.\nTemp 67\nRH 53\n \n________________________________________\nRon Wahl 6/8/2026, 1:10:59 PM\nPost Fail.\n\n6 tiles on site in basement. 1/2 bag grout. HVAC in and running.\n\n1. FP tile is not lipping the FP insert it’s only cut to the edge. (I looked for FP insert cover to check but could not find one.)\n2. Not sure what is going on with the pattern above FP order calls for surround.\n3. No black qtr at floor. \n4. This likely needs to be redone and laid to the insert cover. \nTemp 70\nRH 51"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"1/14/2026","comment":"nina.williamson:: TQC selections. PO- $99. -100% margin. OK to schedule based on net quantities."}]},{"orderNumber":"CG618964","customerName":"D.R. HORTON OF LOUISVILLE","store":"005","jobType":"TILE - WALLS","scheduledInstallDate":"2026-06-02","currentStatus":"JOB CUT","lot":"26","tract":"CEDAR BROOK","postFailDate":"2026-06-08","postFailInspector":"Michael Dunn","postFailNote":"Michael Dunn 6/8/2026, 9:26:08 AM\nPost Failed: no HVAC electric in garage tile has been installed and grouted with silicone (there are no lights so it’s hard to see) only issue found is thin great all over like clean off too early alot of visible dark edges of tile \nInstaller will need to return and regrout shower no mos \nTemp:75","postFailIssues":[],"notes":[{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"3/25/2026","comment":"tonya.mcfarland:: Margin is at 6.07%. This is due to rounding up to the sf per carton and the small amount on the order. Total billing group is at 24.98%. This is ok. TM"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"3/19/2026","comment":"kim.rein:: \r\nPO amount $962.51\r\nMargin 6.07%\r\n\r\nSent to Tonya in RLM for review"},{"type":"Work Order Custom","date":"3/13/2026","comment":"NOTES FOR SHEET WALL TILE\n\n-- FIELD TILE ON HORIZONTAL 1/3-OFFSET TO 7-FT FROM FINISHED FLOOR WITH 1/8\" SPACED JOINTS \n\n-- INSTALL KERDI WATERPROOFING TO TILE HEIGHT\n\n -- SCHLUTER AT ALL EXPOSED EDGES \n\n-- MARMILINE CORNER SHELF AT APPROX 4-FT-AFF IN PLUMBING WALL CORNER\n\n -- INSTALL PER NOTES & LAYOUT\n\n -- CERAMIC CUTS TO BE MADE IN GARAGE\n -- EXTRA MATERIAL TO BE PLACED MECH RM \n________________________________________\nRon Wahl 5/28/2026, 1:25:53 PM\nPre Fail.\nElectric at temp pole. 1 control valve, 1 shower head. \n\n1. Back wall needs right side floated 3/16ths where corner dives in. \n2. There is a 1/4 inch hump at the right side of controls that needs to be addressed by builder. \n3. No water (can get at model)\n4. No HVAC.\nTemp 78\nRH 67\n________________________________________\nMichael Dunn 6/8/2026, 9:26:08 AM\nPost Failed: no HVAC electric in garage tile has been installed and grouted with silicone (there are no lights so it’s hard to see) only issue found is thin great all over like clean off too early alot of visible dark edges of tile \nInstaller will need to return and regrout shower no mos \nTemp:75"}]},{"orderNumber":"CG620732","customerName":"D.R. HORTON OF LOUISVILLE","store":"005","jobType":"TILE - WALLS","scheduledInstallDate":"2026-06-02","currentStatus":"JOB CUT","lot":"27","tract":"CEDAR BROOK","postFailDate":"2026-06-08","postFailInspector":"Michael Dunn","postFailNote":"Michael Dunn 6/8/2026, 9:46:30 AM\nPost Failed: no HVAC has electric tiles have been installed and grouted with silicone .tile and silicone should pass but grout is thin clean out too soon no mos installer will need to return and regrout \nTemp 75\nRh:68","postFailIssues":[],"notes":[{"type":"Line Note","date":"","comment":"genpo lines 1\n03/26/26 - 13:26:35 : luanne.hastings"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"3/30/2026","comment":"tonya.mcfarland:: Margin is 6.07%. This is due to the small amount product on PO and having to round to nearest box. The total billing group is 32.86%. This is ok. TM"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"3/26/2026","comment":"luanne.hastings:: Margin 6.07%\r\npricing $962.51\r\nTCQ Selections \r\nlow margin sent to Tonya"},{"type":"Work Order Custom","date":"3/24/2026","comment":"NOTES FOR SHEET WALL TILE\n\n-- FIELD TILE ON HORIZONTAL 1/3-OFFSET TO 7-FT FROM FINISHED FLOOR WITH 1/8\" SPACED JOINTS \n\n-- INSTALL KERDI WATERPROOFING TO TILE HEIGHT\n\n -- SCHLUTER AT ALL EXPOSED EDGES\n\n -- MARMILINE CORNER SHELF AT APPROX 4-FT-AFF IN PLUMBING WALL CORNER\n\n -- INSTALL PER NOTES & LAYOUT \n\n-- CERAMIC CUTS TO BE MADE IN GARAGE \n-- EXTRA MATERIAL TO BE PLACED MECH RM \n________________________________________\nRon Wahl 5/28/2026, 1:34:31 PM\nPre Reschedule.\n\n1. Drywall guys on site actively mudding walls. \n2. Reschedule pre after drywall is completed.\n \n________________________________________\nMichael Dunn 6/8/2026, 9:46:30 AM\nPost Failed: no HVAC has electric tiles have been installed and grouted with silicone .tile and silicone should pass but grout is thin clean out too soon no mos installer will need to return and regrout \nTemp 75\nRh:68"}]},{"orderNumber":"CG610718","customerName":"ARBOR HOMES - LOUISVILLE","store":"005","jobType":"LAMINATE","scheduledInstallDate":"2026-06-05","currentStatus":"COMPLETED","lot":"258","tract":"Old Heritage","postFailDate":"2026-06-08","postFailInspector":"Ron Wahl","postFailNote":"Ron Wahl 6/8/2026, 9:31:11 AM\nPost Fail.\n\nHVAC on and running. \n\n1. Job still in progress. All areas are done except kitchen area assuming this has to do with gap in the footer that has not been addressed. \n2. No installers on site.\n3. Reschedule post after installer confirms completion.\nTemp 68\nRH 52\nMoisture 5.3C","postFailIssues":["Job still in progress. All areas are done except kitchen area assuming this has to do with gap in the footer that has not been addressed.","No installers on site.","Reschedule post after installer confirms completion."],"notes":[{"type":"Line Note","date":"","comment":"02/18/26 - 15:43:24 : nina.williamson - lines 1,3 material ordered"},{"type":"Line Note","date":"","comment":"Material borrowed for urgent CS repair under 586495r1. Reordered material to replenish what was taken \n \nInstall date: 05/01/26"},{"type":"Order Internal","date":"6/8/2026","comment":"Installer instructed to stop at certain point (Carter provided details) for a wall fix/change, installer left material to finish in Dining area, enough boxes to NOT look like garbage and being thrown away; we'll go back once advised- 06/08/26 - 14:38:41 : yaima.carmona"},{"type":"Job Notes","date":"6/6/2026","comment":"________________________________________\nLou - Marco Guevara 6/6/2026, 2:55:31 PM\nStoped before kitchen. needs rescheduled after the wall is fixed."},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"2/16/2026","comment":"nina.williamson:: TQC selections. PO - $3,766.62. 25.93% margin. OK to schedule based on net quantities."},{"type":"Work Order Custom","date":"1/13/2026","comment":"SLAB \n\nFLOAT INSTALLATION\n\nRANDOM WOOD PATTERN \n\nPERPENDICULAR TO FRONT ENTRY DOOR \n\nINSTAFORM AT ALL TRANSITIONS \n\nQUARTER ROUND AT SLIDING DOOR \n________________________________________\nRon Wahl 5/22/2026, 9:34:27 AM\nPre Fail.\nAll base and trim is installed and painted. Cabinets set. \n1. 2 high spots need grinding. 1 in front of kitchen island. 1 is filled in trench behind counter needs minor grinding. And filled with MFR.\n2. Banister installed but not painted or stained.\n3. Meter on house but no hot plugs. \n4. No water (can get at model) \n5. No HVAC.\n6. Wide crack running across living room need filled with MFR. \n7. 1/2 inch opening at slab footer along range wall in kitchen need filled in with foam or warranty waiver from builder as this could cause issues with moisture.\nMaterials/labor\n \n1. 1 bag MFR for cracks and trench. \n2. 30 min grind time.\nTemp 65\nRH 74\nMoisture 6.1c\n____________________________________Reached out to Travis and Joey on hvac and issue 7(builder needs to address) will need to reset a pre to check moisture at this lot. 05/27/26 - 09:31:58 : tara.abbott \nprep scheduled on CG610716 move with install - 05/27/26 - 09:49:50 : tara.abbott \nHVAC AND PAINTING WILL BE COMPLETED FRIDAY. RESETTING INSTALL FOR tUESDAY\n________________________________________\nMichael Wahl 5/28/2026, 9:29:10 AM\nPre failed\n \n\tPrep is noted\n1. Still missing hvac - super said it should be on tomorrow\n2. There is a very large gap between footer and slab along kitchen wall - I think this needs to be filled with foam or concrete like previously mentioned - or builder needs to sign a waiver on this - see pics\nMoisture 5.3\nHumidity 74\nTemp 72\n________________________________________________________\nsent picture of issue 2 to bldr(emailed Joey and Travis) to see if they can have this fixed for us by install on 6/2 - \nlam prep scheduled on CG610716 PER TRAVIS HE WILL HAVE THIS COMPLETED BY MONDAY\n________________________________________\nRon Wahl 5/29/2026, 9:46:36 AM\nPre Fail\nUpdate.\nHVAC is on and running. House has electric.\n1. Gap at footer has not been addressed. \n2. Banisters still have not been painted or stained. \n3. No water. (Can get at model) \nTemp 70\nRH 58\nMoisture 6.1C \n__________________________Sent message to Lonnie, Ron and Michael that we need to have a pre done firstt am to see if this install can go as scheduled moisture appears to have rose need to double check reading - 06/01/26 - 17:31:47 : tara.abbott \nPer Travis we are pushing to next Thursday as they are going to redo the concrete floor moving on schedule\n________________________________________\nRon Wahl 6/2/2026, 9:13:46 AM\nPre Fail.\nUpdate\n \n1. No changes since previous inspection. \n2. Banisters not painted or stained.\n3. Crack in floor has been filled by builder that called for MFR. Large gap at back corner of kitchen along footer has not been filled in with foam.\nTemp 70\nRH 63\nMoisture 6.2c Took multiple readings 6.2 is the average reading I got some areas were slightly higher. (Likely need to get dehumidifier running in here) \nSent report to Travis, Jason, Joey, per travis push install to friday and we will rechech moisture thursday. He will have the gap filled in today  reset pre for 6/4 pushed installs to 6/5 - 06/02/26 - 10:08:25 : tara.abbott\n \nPer Travis we are pushing to next Thursday as they are going to redo the concrete floor moving on schedule reset inspection as well and prep may need to be changed   prep ticket prep scheduled on CG610716 \n________________________________________\nMichael Wahl 6/4/2026, 10:00:44 AM\nUpdate\n\nMoisture averaging around 5.2%\n________________________________________\nRon Wahl 6/8/2026, 9:31:11 AM\nPost Fail.\n\nHVAC on and running. \n\n1. Job still in progress. All areas are done except kitchen area assuming this has to do with gap in the footer that has not been addressed. \n2. No installers on site.\n3. Reschedule post after installer confirms completion.\nTemp 68\nRH 52\nMoisture 5.3C"}]},{"orderNumber":"CG618153","customerName":"ARBOR HOMES - LOUISVILLE","store":"005","jobType":"LAMINATE","scheduledInstallDate":"2026-06-05","currentStatus":"MATERIAL NEEDED","lot":"203","tract":"The Overlook at Eastwood","postFailDate":"2026-06-08","postFailInspector":"Ron Wahl","postFailNote":"Ron Wahl 6/8/2026, 10:23:46 AM\nPost Fail.\n\n\n1. Small bedroom is unfinished. \n2. Wanted to call out small nook area has had LAM installed assuming this was the change that made installers run short.\n3. Reschedule post after installer confirms completion.\nHVAC on and running \nTemp 74\nRh 56","postFailIssues":["Small bedroom is unfinished.","Wanted to call out small nook area has had LAM installed assuming this was the change that made installers run short.","Reschedule post after installer confirms completion."],"notes":[{"type":"Line Note","date":"","comment":"04/06/26 - 10:28:15 : nina.williamson - lines 1-3 material ordered"},{"type":"Line Note","date":"","comment":"Per Mohawk:Estimated Delivery Date 06/24/2026\nInstall Date;6/4\n06/08/26 - 09:30:47 : melissa.cullum"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"3/17/2026","comment":"nina.williamson::  TQC selections. PO - $5,952.93. 28.49% margin. Verified through price book - OK to schedule."},{"type":"Work Order Custom","date":"1/30/2026","comment":"FIRST FLOOR - WOOD SUBFLOOR\n\n FLOAT INSTALLATION \n\nRANDOM WOOD PATTERN \n\nACROSS JOISTS INSTAFORM AT CARPET \n________________________________________\nRon Wahl 5/22/2026, 12:00:12 PM\nPre Reschedule.\n \n1. Drywall sheets in living room floor and pilot of materials in middle of kitchen floor. \n2. Need to reschedule pre after materials are removed so we can properly check floors.\n3. No hvac\n4. Base and trim have not been painted. \nTemp 70\nRh 68\nMoisture 9.7W\n________________________Reached out to Jason to get eta for hvac to get back on schedule. Also asked when floors will be clear for us to inspect?\n05/27/26 - 09:55:07 : tara.abbott \n \n________________________________________\nMichael Wahl 6/2/2026, 10:35:09 AM\nPre failed\n \n\tWalls primed\n\tElectric is on\n\tCabinets, trim, door casings installed\n\tHvac is on\n1. Seams need to be sanded\n2. Damaged area of subfloor need to be patched - cannot just skim over this one - delaminating\n3. Another area near back door can be filled/skimmed over\nMaterials/labor\nMoisture 9\n\t1 bag MRF\n\tSeam sanding\nHumidity 55\nTemp 72\n____________________________________________Sent Jason and Hugo inspection report let them know we need issues 2 repaired before install as well as if they wish for us to take care of issue 3 I need a vpo for 75.00 (CG638752) install 6/4 - 06/02/26 - 17:59:22 : tara.abbott \nVPO RECEIVED FOR PREP FOR 75.00  THERE IS A CHANGE ORDER FOR THIS WHERE MORE MATERIAL WAS ADDED(MATERIAL NOT IN)618153C1 - 06/04/26 - 14:42:45 : tara.abbott \n \n________________________________________\nRon Wahl 6/8/2026, 10:23:46 AM\nPost Fail.\n\n\n1. Small bedroom is unfinished. \n2. Wanted to call out small nook area has had LAM installed assuming this was the change that made installers run short.\n3. Reschedule post after installer confirms completion.\nHVAC on and running \nTemp 74\nRh 56"}]},{"orderNumber":"CG622849","customerName":"PULTE HOMES OF LOUISV MS 1050","store":"005","jobType":"TILE - BACKSPLASH","scheduledInstallDate":"2026-06-01","currentStatus":"JOB CUT","lot":"81","tract":"AIKEN RIDGE TCG 4","postFailDate":"2026-06-05","postFailInspector":"Ron Wahl","postFailNote":"Ron Wahl 6/5/2026, 9:26:13 AM\nPost Fail.\n\nTile has been laid correctly l, grouted and has silicone. 1/2 box tile on site. No grout on site.\n\n\n1. Missing grout on right side of splash in small spot, calls for Snow White grout. (Only grout on site is bleached wood) \nTemp 70\nRH 52","postFailIssues":["Missing grout on right side of splash in small spot, calls for Snow White grout. (Only grout on site is bleached wood)"],"notes":[{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"4/3/2026","comment":"sabrina.hillberry:: TQC SCH A 02.03.26 9016-08100 $400.00 Margin is correct 23.72%"},{"type":"Work Order Custom","date":"1/8/2026","comment":"1/2 HORIZONTAL OFFSET \n\nTILE TO 36\" ABOVE COUNTER AT RANGE \n________________________________________\nMichael Wahl 5/22/2026, 1:37:43 PM\nPre failed\n \n\tElectric is on\n\tCabinets installed\n\tWalls within tolerance\n\tWater at model\n1. No hvac\n2. No countertops\nHumidity 71\nTemp 72\n \nStill no countertops. Will push until word from Andrew. 05/26/26 - 10:28:24 : scott.ridge \nTops in Friday 5/30\n \n________________________________________\nRon Wahl 6/5/2026, 9:26:13 AM\nPost Fail.\n\nTile has been laid correctly l, grouted and has silicone. 1/2 box tile on site. No grout on site.\n\n\n1. Missing grout on right side of splash in small spot, calls for Snow White grout. (Only grout on site is bleached wood) \nTemp 70\nRH 52"}]},{"orderNumber":"CG612911","customerName":"PULTE HOMES OF LOUISV MS 1050","store":"005","jobType":"CARPET - CUT PILE NO PATTERN","scheduledInstallDate":"2026-06-10","currentStatus":"JOB CUT","lot":"41","tract":"CREEKSTONE TCG 4.5","postFailDate":"2026-06-04","postFailInspector":"Dylan Rose","postFailNote":"Dylan Rose 6/4/2026, 9:08:30 AM\n         Post fail \n      -house has controlled air and electricity \n      \nHard surfaces installed\nAll the baseboards and door casings have been installed \nWalls have been primed \nHigh seam bedroom opposite master needs to be sanded. 15 min labor\nVery wavy area in loft, one high joist staggered next to another, needs to be adjusted by builder or leveled. 1/2 out on both side of level. - either builder fix or 3 bags self leveler\nMoisture 7.9\nHumidity 61.1\nTemp 74","postFailIssues":["house has controlled air and electricity"],"notes":[{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"2/24/2026","comment":"sabrina.hillberry:: TQC SCH A 09.26.25 8211-04100 $1511.04 Low Margin -19.33 Sent to Christian"},{"type":"Work Order Custom","date":"12/22/2025","comment":"WOOD SUBFLOOR \n________________________________________\nMichael Wahl 5/29/2026, 10:30:23 AM\nPre failed\n\nHard surfaces installed\nElectric on\nHigh seam bedroom opposite master needs to be sanded. 15 min labor\nVery wavy area in loft, one high joist staggered next to another, needs to be adjusted by builder or leveled. 1/2 out on both side of level. - either builder fix or 3 bags self leveler\nMoisture 8.4\nHumidity 63\nTemp 72\n_________________________________________\nReached out to Darrien on issues, if he would like us to take care of issue 2 then I requesteed vpo for 295.00 - 06/01/26 - 12:18:42 : tara.abbott \nprep written on CG638163\n \nFollowed up with Darrien - 06/01/26 - 14:25:48 : carter.chastain \n \n \n________________________________________\nDylan Rose 6/4/2026, 9:08:30 AM\n         Post fail \n      -house has controlled air and electricity \n      \nHard surfaces installed\nAll the baseboards and door casings have been installed \nWalls have been primed \nHigh seam bedroom opposite master needs to be sanded. 15 min labor\nVery wavy area in loft, one high joist staggered next to another, needs to be adjusted by builder or leveled. 1/2 out on both side of level. - either builder fix or 3 bags self leveler\nMoisture 7.9\nHumidity 61.1\nTemp 74\n________________________________________\nSPOKE WITH DARRIEN HE IS SEND VPO FOR PREP AND SCHEDULING FOR WEDNESDAY - prep written on CG638163 06/08/26 - 14:54:57 : tara.abbott"}]},{"orderNumber":"CG629960","customerName":"PULTE HOMES OF LOUISV MS 1050","store":"005","jobType":"TILE - WALLS","scheduledInstallDate":"2026-05-29","currentStatus":"JOB CUT","lot":"70","tract":"AIKEN RIDGE TCG 4","postFailDate":"2026-06-04","postFailInspector":"Michael Wahl","postFailNote":"Michael Wahl 6/4/2026, 1:40:25 PM\nPost fail\n\n\n\tTile installed with grout and silicone\n\tHvac is on\n\tHalf box tile, extra driftwood grout in garage\n1. Chipped tile at bottom row of middle wall needs to be replaced\nHumidity 54\nTemp 72","postFailIssues":["Chipped tile at bottom row of middle wall needs to be replaced"],"notes":[{"type":"Line Note","date":"","comment":"Reached out to DT to see when the material will arrive.\nInstall Date:5/27\n05/18/26 - 07:46:00 : melissa.cullum"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"4/30/2026","comment":"reese.christensen:: TQC Selections Verified.\r\nPO Amount: $966.48\r\nMargin: 13.59%\r\nOkay to Schedule."},{"type":"Work Order Custom","date":"2/3/2026","comment":"KERDI AND TILE TO CEILING \n________________________________________\nRon Wahl 5/27/2026, 9:18:28 AM\nPre Fail. \nWalls within tolernces. 1 control valve, 1 shower head. \n1. No water.\n2. Meter on house but not hot plug found.\n3. No HVAC. \nTemp 74\nRH 68\n________________________________________\nMichael Wahl 6/4/2026, 1:40:25 PM\nPost fail\n\n\n\tTile installed with grout and silicone\n\tHvac is on\n\tHalf box tile, extra driftwood grout in garage\n1. Chipped tile at bottom row of middle wall needs to be replaced\nHumidity 54\nTemp 72"}]},{"orderNumber":"CG623913","customerName":"PULTE HOMES OF LOUISV MS 1050","store":"005","jobType":"CARPET - CUT PILE NO PATTERN","scheduledInstallDate":"2026-06-02","currentStatus":"JOB CUT","lot":"77","tract":"Aiken Ridge TCG 4","postFailDate":"2026-06-04","postFailInspector":"Michael Wahl","postFailNote":"Michael Wahl 6/4/2026, 1:58:31 PM\nPost fail\n\n\n\tCarpet is complete throughout\n\tHvac is on\n1. Carpet was very bubbled up at naploc in front flex room - I was able to fix this while on site\n2. Naploc is dented pretty badly throughout, installer needs to return to replace\nHumidity 54\nTemp 73","postFailIssues":["Carpet was very bubbled up at naploc in front flex room - I was able to fix this while on site","Naploc is dented pretty badly throughout, installer needs to return to replace"],"notes":[{"type":"Work Order Custom","date":"1/6/2026","comment":"SLAB \n\nNAPLOC AT VINYL \n________________________________________\nRon Wahl 5/29/2026, 2:09:32 PM\nPre Fail.\nHouse has electric, hvac on and running.all base and trim is installed and painted. \n1. Floors need swept up, dirt trash and debris throughout cpt areas.\n2. No water (get at model)\n3. Rough hole in the floor of master bedroom at baseboard area needs skimmed over with MFR. \nMaterials/Labor\nTemp 73\n1. 1 bag MFR\nRH 56\nMoisture 5.4C \n______________________________________________________\nemailed Andrew of issue 1 asked that he have this taken care of before install on 6/2 - 05/29/26 - 14:48:55 : tara.abbott \nprep scheduled on CG638178\n \nFollowed up with Andrew and Logan - 06/01/26 - 14:36:34 : carter.chastain \n \n________________________________________\nMichael Wahl 6/4/2026, 1:58:31 PM\nPost fail\n\n\n\tCarpet is complete throughout\n\tHvac is on\n1. Carpet was very bubbled up at naploc in front flex room - I was able to fix this while on site\n2. Naploc is dented pretty badly throughout, installer needs to return to replace\nHumidity 54\nTemp 73"}]},{"orderNumber":"CG631828","customerName":"ASB LLC","store":"005","jobType":"CARPET - CUT PILE NO PATTERN","scheduledInstallDate":"2026-06-02","currentStatus":"COMPLETED","lot":"408","tract":"DEERFIELD CROSSING","postFailDate":"2026-06-03","postFailInspector":"Michael Dunn","postFailNote":"Michael Dunn 6/3/2026, 3:00:45 PM\nPost Failed: has working HVAC and electrical carpet has been installed and vacuumed no visible seams only issues are \n1: missing transition at one door (I have already notified customer service)\n2: the two guest bedroom both have spots that looks like a pouch scuffed up in three spots builder will have to have paint touch up \nNo mos \nTemp:68","postFailIssues":[],"notes":[{"type":"Work Order Custom","date":"4/29/2026","comment":"NOTES FOR SHEET CARPET\n\nCONCRETE SUBFLOOR AT FIRST FLOOR \n________________________________________\nLonnie Durand 5/29/2026, 1:22:43 PM\nPre carpet fail \n\nHas controlled air and electricity. Trim and casings are installed. The slab is in good condition. Only failing because hard surface install hasn’t started. Will be ready once laminate is installed. \n\n________________________________________\nMichael Dunn 6/3/2026, 3:00:45 PM\nPost Failed: has working HVAC and electrical carpet has been installed and vacuumed no visible seams only issues are \n1: missing transition at one door (I have already notified customer service)\n2: the two guest bedroom both have spots that looks like a pouch scuffed up in three spots builder will have to have paint touch up \nNo mos \nTemp:68"}]},{"orderNumber":"CG628082","customerName":"PULTE HOMES OF LOUISV MS 1050","store":"005","jobType":"TILE - BACKSPLASH","scheduledInstallDate":"2026-05-27","currentStatus":"SCHEDULED","lot":"94","tract":"AIKEN RIDGE TCG 4","postFailDate":"2026-06-02","postFailInspector":"Ron Wahl","postFailNote":"Ron Wahl 6/2/2026, 11:49:33 AM\nPost Fail.\n\nTile has been laid correctly, grouted and has silicone. Extra material in garage. 1/3 box tile. No extra silicone or grout found on site. No HVAC. \n\n\n1. Rondec at bottom of window was not mitered correctly. See pics.\nTemp 75\nRH 56","postFailIssues":["Rondec at bottom of window was not mitered correctly. See pics."],"notes":[{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"4/23/2026","comment":"reese.christensen:: TQC Selections Verified.\r\nPO Amount: $500.00\r\nMargin: 22.12%\r\nOkay to Schedule."},{"type":"Work Order Custom","date":"2/2/2026","comment":"1/2 HORIZONTAL OFFSET \n\nTILE TO 36\" ABOVE COUNTER AT RANGE \n________________________________________\nMichael Wahl 5/22/2026, 1:30:36 PM\nPre failed\n\n\tWalls within tolerance\n\tElectric in Kitchen\n\tOutlet placement ok\n\tCabinets installed\n1. No countertops\n2. No hvac\nHumidity 70\nTemp 69\n________________________________________\nRon Wahl 6/2/2026, 11:49:33 AM\nPost Fail.\n\nTile has been laid correctly, grouted and has silicone. Extra material in garage. 1/3 box tile. No extra silicone or grout found on site. No HVAC. \n\n\n1. Rondec at bottom of window was not mitered correctly. See pics.\nTemp 75\nRH 56"}]},{"orderNumber":"CG624513","customerName":"SWEENEY CONSTRUCTION, LLC","store":"005","jobType":"TILE - FIREPLACE","scheduledInstallDate":"2026-05-27","currentStatus":"READY","lot":"","tract":"POWERS RESIDENCE","postFailDate":"2026-06-02","postFailInspector":"Michael Dunn","postFailNote":"Michael Dunn 6/2/2026, 10:43:42 AM\nPost Failed: needs rescheduled to after completion no progress since last inspection","postFailIssues":[],"notes":[{"type":"Line Note","date":"","comment":"04/10/26 - 11:28:37 : eva.brewer - Material ordered, lines 1 and 2."},{"type":"Line Note","date":"","comment":"Need two boxes ordered. Job in progress. 05/28/26 - 07:10:20 : scott.ridge"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"5/18/2026","comment":"joseph.bond:: using the new custom builder labor rates has resulted in a reduction of margin from 38% to 30% ~ JB 05/18/2026"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"4/10/2026","comment":"eva.brewer:: 38.02% margin, billed at $2,021.22 at time of writing. TQC. Quoted pricing. Okay to schedule."},{"type":"Work Order Custom","date":"4/9/2026","comment":"NOTES FOR SHEET Fireplace-JE184345\nINSTALL HORIZONTAL STACKED. BLACK SCHLUTER AROUND FIREBOX AND AT CORNERS BETWEEN FACE AND RETURNS. \n________________________________________\nMichael Dunn 5/21/2026, 7:41:07 AM\nPre passed: has working HVAC and electrical insert is installed it’s in tolerance at top but there is a issue with the bottom and edge will need to be floated out but with bigger tiles should be fine \nTemp:70\n \n \nWill need to order more tile 05/27/26 - 14:35:18 : scott.ridge \n \n_______________________________________________________________________________________\n \n________________________________________\nMichael Dunn 6/2/2026, 10:43:42 AM\nPost Failed: needs rescheduled to after completion no progress since last inspection"}]},{"orderNumber":"CG612915","customerName":"PULTE HOMES OF LOUISV MS 1050","store":"005","jobType":"TILE - BACKSPLASH","scheduledInstallDate":"2026-05-27","currentStatus":"SCHEDULED","lot":"41","tract":"CREEKSTONE TCG 4.5","postFailDate":"2026-06-02","postFailInspector":"Michael Wahl","postFailNote":"Michael Wahl 6/2/2026, 8:53:55 AM\nPost fail\n\n\n\tKbs is set with grout and silicone\n\t1/4 box tile, extra grout in garage\n1. Schluter on all edges is lipped significantly, 3/16 or more in areas, schluter not sitting flush with tile\nHumidity 53\nTemp 69","postFailIssues":["Schluter on all edges is lipped significantly, 3/16 or more in areas, schluter not sitting flush with tile"],"notes":[{"type":"Line Note","date":"","comment":"One carton arrived damaged. They are sending a replacment for the damged material.\n03/05/26 - 15:13:22 : melissa.cullum"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"2/24/2026","comment":"sabrina.hillberry:: TQC SCH A 09.26.25 8211-04100 $550.00 Margin is correct 24.80%"},{"type":"Work Order Custom","date":"12/22/2025","comment":"1/2 HORIZONTAL OFFSET \n\nTILE TO 36\" ABOVE COUNTER AT RANGE \n________________________________________\nMichael Wahl 5/21/2026, 10:30:45 AM\nPre failed\n \n\tWalls within tolerance\n\tElectric on temp pole\n1. No hvac\n2. No countertops\nHumidity 64\nTemp 63\n___________________________________________Sent message to Darrien to get eta for countertops install 5/26 - 05/21/26 - 18:47:06 : tara.abbott \n \n________________________________________\nMichael Wahl 6/2/2026, 8:53:55 AM\nPost fail\n\n\n\tKbs is set with grout and silicone\n\t1/4 box tile, extra grout in garage\n1. Schluter on all edges is lipped significantly, 3/16 or more in areas, schluter not sitting flush with tile\nHumidity 53\nTemp 69"}]},{"orderNumber":"CG620874","customerName":"PULTE HOMES OF LOUISV MS 1050","store":"005","jobType":"CARPET - CUT PILE NO PATTERN","scheduledInstallDate":"2026-06-01","currentStatus":"JOB CUT","lot":"93","tract":"Aiken Ridge TCG 4","postFailDate":"2026-06-02","postFailInspector":"Ron Wahl","postFailNote":"Ron Wahl 6/2/2026, 11:44:16 AM\nPost Fail.\n\nCarpet is down in all areas. \n\n1. Still missing door trim at laundry. So still missing transitions here. \n2. Carpet left untucked at laundry due to missing transition. \nTemp 73\nRH 53","postFailIssues":["Still missing door trim at laundry. So still missing transitions here.","Carpet left untucked at laundry due to missing transition."],"notes":[{"type":"Line Note","date":"","comment":"Per Shaw: Processing in DALTON, GA . Estimated delivery 05/20/2026\nInstall Date:5/28\n05/18/26 - 08:52:02 : melissa.cullum \n\n\nUpdate:Processing in CINCINNATI, OH . Estimated delivery 05/22/2026\n05/21/26 - 08:41:11 : melissa.cullum"},{"type":"Order Internal","date":"3/27/2026","comment":"03/27/26 - 08:31:07 : mercedes.shaw GENPO LINE 1"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"3/27/2026","comment":"mercedes.shaw:: TQC selections verified\r\nOriginal PO amount $2310.72\r\nBreak down $\r\nMargin 20.39% Ok to SCH"},{"type":"Work Order Custom","date":"1/8/2026","comment":"WOOD SUBFLOOR \n________________________________________\nMichael Wahl 5/28/2026, 1:44:11 PM\nPre failed\n \n\tElectric is on\n\tHvac is on\n1. All transitions installed incorrectly - glued straight to the floor and multiple are installed at incorrect location sitting way too far on the LVT side - see pics. Installer needs to return to correctly do all transitions. Laundry transition still missing.\n2. Sweeping needed - 30 mins labor\nMoisture 8.5\nHumidity 67\nTemp 75\n________________________________________\nLou - Carlos Guevara 6/1/2026, 10:23:06 AM\nBarrida \n________________________________________\nRon Wahl 6/2/2026, 11:44:16 AM\nPost Fail.\n\nCarpet is down in all areas. \n\n1. Still missing door trim at laundry. So still missing transitions here. \n2. Carpet left untucked at laundry due to missing transition. \nTemp 73\nRH 53"}]},{"orderNumber":"CG631832","customerName":"ASB LLC","store":"005","jobType":"LAMINATE","scheduledInstallDate":"2026-06-01","currentStatus":"COMPLETED","lot":"408","tract":"DEERFIELD CROSSING","postFailDate":"2026-06-02","postFailInspector":"Michael Dunn","postFailNote":"Michael Dunn 6/2/2026, 1:49:42 PM\nPost Failed:has working HVAC and electrical laminate has been installed and covered with most of the necessary transitions one box mos in garage failed due to one transition missed at bedroom door a tech will need to return when possible to install (carpet installer is here I asked him not to trim that door we will get it when we return)\nTemp:69\n\nTransition moved to finish up sale 06/03/26 - 08:34:05 : april.crone","postFailIssues":[],"notes":[{"type":"Line Note","date":"","comment":"Per Mohawk:Estimated Delivery Date 05/20/2026\nInstall Date:5/26\n05/15/26 - 08:14:36 : melissa.cullum"},{"type":"Work Order Custom","date":"4/29/2026","comment":"NOTES FOR SHEET LAMINATE\n\nRANDOM WOOD PATTERN PARALLEL TO FRONT ENTRY DOOR ENDCAP AT BEDROOMS CARPET CLEAR CAULK AT TUB AND SHOWER\nCONCRETE SUBFLOOR AT FIRST FLOOR \n________________________________________\nMichael Dunn 5/28/2026, 12:34:39 PM\nPre Failed: needs rescheduled materials throughout cannot inspect \nTemp:70\n_______________________________________________Reached out to Robbie T to see when this will be clear for us to inspect,  currently scheduled for 6/1 - we will need to postpone if we cannot check this tomorrow 5/29 - 05/28/26 - 13:10:11 : tara.abbott \nper Robbie we should be able to inspect tomorrow reset pre for 5/2905/28/26 - 13:43:02 : tara.abbott \n \n________________________________________\nLonnie Durand 5/29/2026, 1:13:20 PM\nPre laminate fail \n\nHas controlled air and electricity. Cabinets, trim and casings are installed. \n\nIssues: \n1 high spot in the living room 1/4\nOne small low spot in the living room 1/4\n1 high spot in front of stress joint in the slab at the garage foyer \nSolutions:\nM 3\nGrind the high spots. 1 hour \n1 bag of ardex feather finish to build up the low spot. \nRH 44\nT 67\n_________________________________________________sent email to Robbie to get approval fro prep in the amount of 175.00 schedule on CG631829 - 05/29/26 - 16:11:03 : tara.abbott \nprep approved and email response copied and pasted into prep internal note - 06/01/26 - 07:09:07 : tara.abbott \n \n________________________________________\nMichael Dunn 6/2/2026, 1:49:42 PM\nPost Failed:has working HVAC and electrical laminate has been installed and covered with most of the necessary transitions one box mos in garage failed due to one transition missed at bedroom door a tech will need to return when possible to install (carpet installer is here I asked him not to trim that door we will get it when we return)\nTemp:69\n\nTransition moved to finish up sale 06/03/26 - 08:34:05 : april.crone"}]},{"orderNumber":"CG632398","customerName":"LANDMARK CONSTRUCTION AND DESIGN","store":"005","jobType":"LAMINATE","scheduledInstallDate":"2026-06-01","currentStatus":"INSPECTION FAILED - HALT","lot":"","tract":"HIRSCH RESIDENCE","postFailDate":"2026-06-02","postFailInspector":"Ron Wahl","postFailNote":"Ron Wahl 6/2/2026, 10:47:21 AM\nPost Fail.\n\nLAM is down in all areas but not covered. \n\n\nBase and jams still not installed.\nFloors not covered. \nHad to gain entry through open window on opposite side of house due to fresh poured slab. See pics. \nTemp 71\nRH 54","postFailIssues":[],"notes":[{"type":"Line Note","date":"","comment":"05/11/26 - 08:51:34 : eva.brewer - Material ordered, line 1."},{"type":"Order Internal","date":"6/2/2026","comment":"No cardboard was on the original ticket. Added cardborad and labor. Pay the installe $.10 per sf for the return trip 06/02/26 - 11:00:34 : joseph.bond"},{"type":"Job Notes","date":"6/2/2026","comment":"________________________________________\nLou - Marco Guevara 6/2/2026, 10:23:43 PM\nCardboard wasn’t on the order to cover the floor. One box left in the garage"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"6/2/2026","comment":"joseph.bond:: add cardboard and labor marign changed to 36%"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"5/11/2026","comment":"eva.brewer:: 39.28% margin, billed at $4373.82 at time of writing. Okay to schedule."},{"type":"Work Order Custom","date":"5/7/2026","comment":"NOTES FOR SHEET LAM\nCONCRETE SLAB. INSTALL PER DIAGRAM. JOHNSONITE 1.5\" TUB MOLDING AT TUB. \n________________________________________\nRon Wahl 5/26/2026, 8:46:43 AM\nPre Reschedule.\n \nDrywall guys on site mudding walls. \nPaper down throughout.\nReschedule pre after drywall is finished and floors are clear. \n________________________________________\nRon Wahl 5/26/2026, 8:48:39 AM\n****Direction’s*** \n\nGo through the gate and take gravel road on right, road will take you right back to the house*** \n________________________________________\nRon Wahl 5/29/2026, 9:07:07 AM\nPre fail.\nCabinets set.\n\n6 high spots need grinding. 4 in living room. 1 in hallway, 1 inch laundry room all 1/4+ high. \n1 low spot in kitchen along front of range area and right corner. 1/4+ low almost 3/8ths. Needs self leveler.\nNo electric. There is a generator on site in garage, but this may be homeowners. \nWalls not primed. \nNo water. \nMissing base and jams throughout. \nMaterials/Labor\n2 hrs grind time. \n1 bag self leveler. \nTemp 75\nRH 68\nMoisture 6.4C \n__________________________________________Sent inspection to Matt and Joseph(he is out at this time). Asking for updates  and prep approval prep ticket(CG637743) install scheduled 6/1 - 05/29/26 - 12:30:14 : tara.abbott \n \n_________________________________________\n \nSpoke with Chad Daily and he approves the $320 for grinding and prep.\n \nProceed to Install\n \n05/29/26 - 16:06:54 : matt.dennis \n \n \n________________________________________\nRon Wahl 6/2/2026, 10:47:21 AM\nPost Fail.\n\nLAM is down in all areas but not covered. \n\n\nBase and jams still not installed.\nFloors not covered. \nHad to gain entry through open window on opposite side of house due to fresh poured slab. See pics. \nTemp 71\nRH 54\n__________________________________________________________________________________________\nNo cardboard was on the original ticket. Added cardboard and labor.  06/02/26 - 11:00:34 : joseph.bond"}]},{"orderNumber":"CG634667","customerName":"ARBOR HOMES - LOUISVILLE","store":"005","jobType":"TILE - FIREPLACE","scheduledInstallDate":"2026-05-26","currentStatus":"SCHEDULED","lot":"94","tract":"Cedar Creek","postFailDate":"2026-06-01","postFailInspector":"Ron Wahl","postFailNote":"Ron Wahl 6/1/2026, 9:33:20 AM\nPost Fail.\n\nFP has been laid correctly, and grouted.  Extra material in MEC 6 tiles, 1 bag grout and 1 partial bag. No silicone on site. \n\n\n1. Mantle was never installed. \n2. No black shoe at floor due to floor not being laid. \nTemp 70\nRH 52","postFailIssues":["Mantle was never installed.","No black shoe at floor due to floor not being laid."],"notes":[{"type":"Line Note","date":"","comment":"05/18/26 - 14:38:00 : nina.williamson - Emailed orders to please set up for will - call.\n\nreached out to DT to see when the material will be delivered.\nInstall Date:5/26\n05/21/26 - 08:24:45 : melissa.cullum"},{"type":"Work Order Custom","date":"5/18/2026","comment":"1’ SURROUND \n\nINSTALL BLACK RUBBER QUARTER ROUND WHERE TILE MEETS THE FLOOR \n \n \nMargin starting at -21.31%\n 05/22/26 - 15:26:28 : scott.ridge \n \n________________________________________\nRon Wahl 6/1/2026, 9:33:20 AM\nPost Fail.\n\nFP has been laid correctly, and grouted.  Extra material in MEC 6 tiles, 1 bag grout and 1 partial bag. No silicone on site. \n\n\n1. Mantle was never installed. \n2. No black shoe at floor due to floor not being laid. \nTemp 70\nRH 52"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"5/18/2026","comment":"nina.williamson:: TQC selections. PO- $186.15. -23.5% margin. OK to schedule based on net quanities."}]},{"orderNumber":"CG621148","customerName":"PERFECTION BUILDERS (EPCON)","store":"005","jobType":"TILE - FLOORS","scheduledInstallDate":"2026-05-26","currentStatus":"FOLLOW UP","lot":"153","tract":"COURTYARDS OF CURRY FARMS","postFailDate":"2026-06-01","postFailInspector":"Michael Wahl","postFailNote":"Michael Wahl 6/1/2026, 12:13:08 PM\nPost fail\n\n\n\tTile is complete with grout\n\tExtra 2 pieces tile, extra grout in garage\n\tNo hvac\n1. Floors were not covered\nHumidity 54\nTemp 75","postFailIssues":["Floors were not covered"],"notes":[{"type":"Order Internal","date":"3/27/2026","comment":"GEN PO LINE 1, 9\n03/27/26 - 15:34:35 : sydney.tatum"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"3/27/2026","comment":"sydney.tatum:: TQC\r\n12.47 MARGIN\r\n1339.20"},{"type":"Work Order Custom","date":"3/5/2026","comment":"NOTES FOR SHEET TILE - FLOORS\n\nMASTER BATH \n1/3 OFFSET \nPARALLEL TO CABINETS \n3/16 INCH SPACED GROUT JOINTS DO NOT REMOVE BASEBOARDS CONCRETE SUBFLOOR AT FIRST FLOOR \n________________________________________\nMichael Wahl 5/18/2026, 1:26:41 PM\nPre failed\n \n\tElectric in laundry\n\tWater at model\n\tFloors within tolerance\n\tCabinets installed \n1. Toilet flanges not yet installed\n2. No door casings or trim\nMoisture 5.4\nHumidity 59\nTemp 84\n \n____________________________________________\n \n \nMike says to push the 26th please 05/18/26 - 15:13:53 : joseph.bond \n \n________________________________________\nMichael Wahl 6/1/2026, 12:13:08 PM\nPost fail\n\n\n\tTile is complete with grout\n\tExtra 2 pieces tile, extra grout in garage\n\tNo hvac\n1. Floors were not covered\nHumidity 54\nTemp 75"}]},{"orderNumber":"CG621144","customerName":"PERFECTION BUILDERS (EPCON)","store":"005","jobType":"TILE - WALLS","scheduledInstallDate":"2026-05-26","currentStatus":"FOLLOW UP","lot":"153","tract":"COURTYARDS OF CURRY FARMS","postFailDate":"2026-06-01","postFailInspector":"Michael Wahl","postFailNote":"Michael Wahl 6/1/2026, 12:10:09 PM\nPost fail\n\n\n\tTile is set with grout and silicone\n\t1 damaged tile in center wall needs to be replace\n\tBox of tile and extra arctic white grout on site\n\tNo hvac\nHumidity 54\nTemp 75","postFailIssues":[],"notes":[{"type":"Order Internal","date":"3/27/2026","comment":"GEN PO LINE 1, 5\n03/27/26 - 15:31:57 : sydney.tatum"},{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"3/27/2026","comment":"sydney.tatum:: TQC\r\n24.27 MARGIN\r\n2412.61"},{"type":"Work Order Custom","date":"3/5/2026","comment":"NOTES FOR SHEET TILE - WALLS BATH 2\n\nBATH 2 TUB \nKERDI WATERPROOF TO TILE HEIGHT \nTUB TILE HEIGHT IS TO CEILING VERTICAL STACK \nSTOP TILE AT OUTSIDE EDGE OF TUB \n________________________________________\nMichael Wahl 5/18/2026, 1:28:42 PM\nPre fail\n \n\tElectric in laundry \n\tWater at model\n\tWalls within tolerance\n\t1 shower head, 1 mixing valve\n1. No hvac\nMoisture 5.4 \nHumidity 59\nTemp 84\n \n_____________________________________________________________________\n \nMike says to push this job to  the 26th please 05/18/26 - 15:13:53 : joseph.bond \n________________________________________\nMichael Wahl 6/1/2026, 12:10:09 PM\nPost fail\n\n\n\tTile is set with grout and silicone\n\t1 damaged tile in center wall needs to be replace\n\tBox of tile and extra arctic white grout on site\n\tNo hvac\nHumidity 54\nTemp 75"}]},{"orderNumber":"CG589524","customerName":"SUPERIOR BUILDERS","store":"005","jobType":"TILE - BACKSPLASH","scheduledInstallDate":"2026-06-05","currentStatus":"READY","lot":"58","tract":"CHISM TRAIL","postFailDate":"2026-05-14","postFailInspector":"Ron Wahl","postFailNote":"Ron Wahl 5/14/2026, 2:37:11 PM\nPost Fail.\n\nTile has been laid correctly, grouted and has silicone. 6 sheets tile. 1/2 bag grout on site in basement. No qtr. no silicone. \n\n\n1. Grout needs touched up. \n2. Missing qtr throughout KBS.\n3. Haze needs cleaned up.\n4. Installer left materials in living room floor. (I will move them to basement.) \n5. Installer needs to return and fix issues.\nTemp 71\nRH 52","postFailIssues":["Grout needs touched up.","Missing qtr throughout KBS.","Haze needs cleaned up.","Installer left materials in living room floor. (I will move them to basement.)","Installer needs to return and fix issues."],"notes":[{"type":"Line Note","date":"","comment":"Reached out to DT to see when the material will arrive.\nInstall Date:6/5\n06/05/26 - 10:07:39 : melissa.cullum"},{"type":"Order Remark - UNSHIPS","date":"5/28/2026","comment":"scott.ridge:: Materials were staged and delivered.\r\n\r\nI have no proof that installer had materials. No proof installer lost items. \r\n\r\nItems re-odered."},{"type":"Order Internal","date":"5/15/2026","comment":"Tile Mger to address Post issues before JC - 05/15/26 - 11:27:49 : yaima.carmona \n\nScott waiting on issue with this KBS and Lot 56 to fix all at same time - 06/03/26 - 15:00:37 : yaima.carmona"},{"type":"Work Order Custom","date":"11/28/2025","comment":"NOTES FOR SHEET KBS\nINSTALL HERRINGBONE WITH POINTS UP/DOWN. TILE TO HOOD OVER RANGE (OR TO 30\" ABOVE RANGE IF HOOD IS NOT IN). \n________________________________________\nRon Wahl 5/1/2026, 2:39:33 PM\nPre Ready. \nElectric at laundry. Countertops are in and lvl. HVAC on and running.\n\n1. There is a small hump on right side of range, float wall out 1/8th inch on both sides for 2ft to accommodate.\n2. On right side of window at sink. Wall drops in to the left. I marked this high, we need to float the wall on both sides to fade this out. 1/8th inch to the left and an 8th inch to edge of KBS. \n3. No water (bring water)\nTemp 71\nRh 54\n________________________________________\nRon Wahl 5/14/2026, 2:37:11 PM\nPost Fail.\n\nTile has been laid correctly, grouted and has silicone. 6 sheets tile. 1/2 bag grout on site in basement. No qtr. no silicone. \n\n\n1. Grout needs touched up. \n2. Missing qtr throughout KBS.\n3. Haze needs cleaned up.\n4. Installer left materials in living room floor. (I will move them to basement.) \n5. Installer needs to return and fix issues.\nTemp 71\nRH 52"}]},{"orderNumber":"CG619997","customerName":"PULTE HOMES OF LOUISV MS 1050","store":"005","jobType":"TILE - BACKSPLASH","scheduledInstallDate":"2026-05-26","currentStatus":"JOB CUT","lot":"85","tract":"Aiken Ridge TCG 4.5","postFailDate":"2026-05-04","postFailInspector":"Michael Wahl","postFailNote":"Michael Wahl 5/4/2026, 1:19:48 PM\nPost fail\n\n\tKbs is set with grout and silicone\n\tSimilar to previous jobs - there are gaps between schluter and drywall that need to be filled with grout - very noticeable. I’ve been seeing this a lot lately.\n\tHalf box extra tile, bright white grout on site in garage\nHumidity 52\nTemp 68","postFailIssues":[],"notes":[{"type":"Order Remark - MARGIN RESEARCH, REASON, REQUEST, RESULTS UPDATE","date":"3/24/2026","comment":"mercedes.shaw:: TQC selections verified\r\nOriginal PO amount $500\r\nBreak down $\r\nMargin 23.32% Ok to SCH"},{"type":"Work Order Custom","date":"1/2/2026","comment":"1/2 HORIZONTAL OFFSET \n\nTILE TO 36\" ABOVE COUNTER AT RANGE \n________________________________________\nMichael Wahl 4/21/2026, 1:05:51 PM\nPre failed\n \n\tWalls within tolerance\n\tElectric on generator\n\tWater at model\n1. No countertops\n2. No hvac\nHumidity 44\nTemp 61\n________________________________________________Reached out to Andrew and Logan to confirm countertops install scheduled for kbs 4/23 - 04/22/26 - 09:47:03 : tara.abbott \n \n________________________________________\nMichael Wahl 4/28/2026, 1:39:31 PM\nPost reschedule\n \n\tTile is set but missing grout and silicone\n\tBright white grout and silicone on site in kitchen\nHumidity 61\nTemp 75\n________________________________________\nMichael Wahl 5/1/2026, 11:11:27 AM\nPost reschedule\n \n\tInstaller on site finishing this job\n\tPlease reschedule inspection for Monday \n________________________________________\nMichael Wahl 5/4/2026, 1:19:48 PM\nPost fail\n\n\tKbs is set with grout and silicone\n\tSimilar to previous jobs - there are gaps between schluter and drywall that need to be filled with grout - very noticeable. I’ve been seeing this a lot lately.\n\tHalf box extra tile, bright white grout on site in garage\nHumidity 52\nTemp 68"}]}];
+loadPostFails(PRELOADED_POSTFAILS);
+// ──── END AUTO-EMBEDDED POSTFAILS
+
+document.getElementById('hdr-sub').textContent = 'No data loaded — run inject_data.js after pulling a new report';
+</script>
+</body>
+</html>
