@@ -244,7 +244,8 @@ tr:hover td{background:rgba(255,255,255,.025)}
     <div class="toolbar-info" id="detail-info">—</div>
     <div style="display:flex;gap:8px;align-items:center">
       <span id="filter-active" style="font-size:11px;color:var(--primary);display:none"></span>
-      <button class="btn-sm" id="clear-inst-btn" onclick="clearInstFilter()" style="display:none">Clear Installer Filter</button>
+      <span id="filter-issue-active" style="font-size:11px;color:var(--warning);display:none"></span>
+      <button class="btn-sm" id="clear-inst-btn" onclick="clearAllChartFilters()" style="display:none">Clear Filters</button>
       <button class="btn-sm" onclick="exportCSV()">Export CSV</button>
     </div>
   </div>
@@ -287,6 +288,7 @@ tr:hover td{background:rgba(255,255,255,.025)}
       <div style="position:relative;height:300px">
         <canvas id="inst-chart"></canvas>
       </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px;text-align:center">Click a bar to filter the table to that issue · Click again to clear</div>
     </div>
   </div>
 </div>
@@ -343,6 +345,7 @@ const S = {
   activeStores: new Set(),
   periodDays: 0,   // 0 = all
   instFilter: null,
+  chartIssueFilter: null,  // issue tag selected from bar chart
   instSort: 'count',
   sort: { field: 'closedDate', dir: 'desc' },
   page: 1, pageSize: 50,
@@ -472,6 +475,13 @@ function clearInstFilter() {
   document.querySelectorAll('.inst-card').forEach(c=>c.classList.remove('selected'));
   applyFilters();
 }
+function clearAllChartFilters() {
+  S.instFilter = null;
+  S.chartIssueFilter = null;
+  S.page = 1;
+  document.querySelectorAll('.inst-card').forEach(c=>c.classList.remove('selected'));
+  applyFilters();
+}
 
 // ─── APPLY FILTERS ────────────────────────────────────────────────────────────
 function applyFilters() {
@@ -482,6 +492,7 @@ function applyFilters() {
     if (S.allStores.length && !S.activeStores.has(r.store)) return false;
     if (!S.activeIssues.has(r.issueTag)) return false;
     if (S.instFilter && r.installerName !== S.instFilter) return false;
+    if (S.chartIssueFilter && r.issueTag !== S.chartIssueFilter) return false;
     if (cutoff && r.closedDate) {
       const d = new Date(r.closedDate+'T12:00:00');
       if (!isNaN(d) && d < cutoff) return false;
@@ -498,16 +509,24 @@ function applyFilters() {
   renderScorecards(data);
   renderTable();
 
-  // Show/hide installer filter badge
-  const badge = document.getElementById('filter-active');
-  const btn   = document.getElementById('clear-inst-btn');
+  // Show/hide filter badges
+  const badge    = document.getElementById('filter-active');
+  const issBadge = document.getElementById('filter-issue-active');
+  const btn      = document.getElementById('clear-inst-btn');
   if (S.instFilter) {
-    badge.textContent = `Filtered: ${S.instFilter}`;
+    badge.textContent = `Installer: ${S.instFilter}`;
     badge.style.display = '';
     btn.style.display = '';
   } else {
     badge.style.display = 'none';
-    btn.style.display = 'none';
+    btn.style.display = S.chartIssueFilter ? '' : 'none';
+  }
+  if (S.chartIssueFilter) {
+    issBadge.textContent = `Issue: ${S.chartIssueFilter}`;
+    issBadge.style.display = '';
+    btn.style.display = '';
+  } else {
+    issBadge.style.display = 'none';
   }
 }
 
@@ -637,7 +656,13 @@ function showInstChart(installerName) {
       datasets: [{
         label: '# Chargebacks',
         data: values,
-        backgroundColor: colors.map(c => c + '99'),
+        backgroundColor: colors.map((c,i) => {
+          // Highlight the selected issue bar if one is active for this installer
+          if (S.chartIssueFilter && S.instFilter === installerName) {
+            return labels[i] === S.chartIssueFilter ? c : c + '33';
+          }
+          return c + '99';
+        }),
         borderColor: colors,
         borderWidth: 1,
         borderRadius: 4,
@@ -646,6 +671,32 @@ function showInstChart(installerName) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      cursor: 'pointer',
+      onClick(evt, elements) {
+        if (!elements.length) return;
+        const idx = elements[0].index;
+        const issue = labels[idx];
+        // Toggle: clicking the already-selected issue clears it
+        if (S.chartIssueFilter === issue && S.instFilter === installerName) {
+          S.chartIssueFilter = null;
+        } else {
+          S.chartIssueFilter = issue;
+          // Also set installer filter if not already set
+          if (!S.instFilter) {
+            S.instFilter = installerName;
+            document.querySelectorAll(`.inst-card`).forEach(c =>
+              c.classList.toggle('selected', c.querySelector('.inst-name')?.title === installerName)
+            );
+          }
+        }
+        S.page = 1;
+        applyFilters();
+        // Redraw chart to show highlight
+        showInstChart(installerName);
+      },
+      onHover(evt, elements) {
+        evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -655,7 +706,7 @@ function showInstChart(installerName) {
           titleColor: '#e6edf3',
           bodyColor: '#8b949e',
           callbacks: {
-            label: ctx => ` ${ctx.parsed.y} occurrence${ctx.parsed.y!==1?'s':''}`
+            label: ctx => ` ${ctx.parsed.y} occurrence${ctx.parsed.y!==1?'s':''} — click to filter table`
           }
         }
       },
@@ -795,6 +846,12 @@ function exportCSV() {
 }
 
 // PRELOADED_CHARGEBACKS is injected by inject_data.js
+
+
+
+
+
+
 
 
 
