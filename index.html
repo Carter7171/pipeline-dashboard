@@ -516,7 +516,14 @@ tr.row-done td.done-cell{opacity:1}
   <div class="notes-modal">
     <div class="notes-modal-hdr">
       <h3>Order Notes — <span id="notes-order-num"></span></h3>
-      <button class="notes-close" onclick="closeNotes()">✕</button>
+      <div style="display:flex;align-items:center;gap:10px">
+        <a id="view-materials-btn" href="#" target="_blank"
+          style="font-size:12px;font-weight:600;padding:5px 12px;border-radius:6px;border:1px solid var(--primary);color:var(--primary);text-decoration:none;white-space:nowrap"
+          onmouseover="this.style.background='rgba(88,166,255,.1)'" onmouseout="this.style.background=''">
+          📦 View Materials
+        </a>
+        <button class="notes-close" onclick="closeNotes()">✕</button>
+      </div>
     </div>
     <div class="notes-body" id="notes-body"></div>
   </div>
@@ -1516,6 +1523,9 @@ function applyCompletions() {
 function showNotes(orderNumber) {
   const job = S.rawData.find(j => j.orderNumber === orderNumber);
   document.getElementById('notes-order-num').textContent = orderNumber;
+  // Wire the View Materials button to open materials.html filtered to this order
+  const matBtn = document.getElementById('view-materials-btn');
+  if (matBtn) matBtn.href = `materials.html?order=${encodeURIComponent(orderNumber)}`;
   const body = document.getElementById('notes-body');
   const notes = job && job.notes ? [...job.notes] : [];
   if (!notes.length) {
@@ -1583,6 +1593,7 @@ function toast(msg, type='info') {
     }, err => console.warn('Firestore error:', err));
   } catch(e) { console.warn('Firebase init failed:', e); }
 })();
+
 
 
 
