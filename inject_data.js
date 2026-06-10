@@ -576,6 +576,9 @@ if (fs.existsSync(PREINSPECT_HTML)) {
       }
     }
 
+    // Skip orders with no pre-inspection notes at all
+    if (preStatus === 'no_pre') continue;
+
     preinspectRecords.push({
       orderNumber:      order.orderNumber || '',
       customerName:     order.customerName || '',
