@@ -44,6 +44,7 @@ function loadPreprocessedData(records) {
     notes:       r.notes        || [],
     lot:         r.lot          || '',
     tract:       r.tract        || '',
+    jobNumber:   r.jobNumber    || '',
     startingPrice:  r.startingPrice  != null ? r.startingPrice  : null,
     startingMargin: r.startingMargin != null ? r.startingMargin : null,
   }));
@@ -237,6 +238,7 @@ if (fs.existsSync(POSTFAILS_HTML)) {
       currentStatus:       order.currentStatus || '',
       lot:                 order.lot || '',
       tract:               order.tract || '',
+      jobNumber:           order.jobNumber || '',
       postFailDate,
       postFailInspector:   inspector,
       postFailNote:        latestNoteComment.substring(0, 600),

@@ -176,7 +176,7 @@ while (i < raw.length) {
     let store = '', installDateStr = '',
         customerName = '', customerType = '', serviceOffering = '',
         orderType = '', currentStatus = '',
-        lot = '', tract = '';
+        lot = '', tract = '', jobNumber = '';
     let revenue = 0, cost = 0;
     const notes = [];
     const lines = [];  // line items for this order
@@ -267,6 +267,10 @@ while (i < raw.length) {
             const afterC = afterLabel(v);
             tract = afterC || cell(r, k+1);
           }
+          if (/^Job\s*Number\s*:/i.test(v) && !jobNumber) {
+            const afterC = afterLabel(v);
+            jobNumber = afterC || cell(r, k+1);
+          }
         }
 
       } else {
@@ -311,8 +315,9 @@ while (i < raw.length) {
       cost:        Math.round(cost        * 100) / 100,
       grossProfit: Math.round(grossProfit * 100) / 100,
       margin:      Math.round(margin      * 10)  / 10,
-      lot:         String(lot   || '').trim(),
-      tract:       String(tract || '').trim(),
+      lot:         String(lot      || '').trim(),
+      tract:       String(tract    || '').trim(),
+      jobNumber:   String(jobNumber|| '').trim(),
       startingPrice:  null,  // filled in below
       startingMargin: null,
       notes,
