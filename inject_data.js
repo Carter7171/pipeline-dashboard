@@ -377,3 +377,295 @@ async function cleanStalePostfailStatuses() {
 }
 
 cleanStalePostfailStatuses();
+
+// ─── PRE-INSPECTION TRACKER ───────────────────────────────────────────────────
+const PREINSPECT_HTML = path.join(__dirname, 'preinspect.html');
+if (fs.existsSync(PREINSPECT_HTML)) {
+
+  // ── Business day helpers ──────────────────────────────────────────────────
+  function getNext5BusinessDays() {
+    const dates = new Set();
+    const cur = new Date(); cur.setHours(0,0,0,0);
+    // Include today if it's a weekday
+    if (cur.getDay() !== 0 && cur.getDay() !== 6) dates.add(cur.toISOString().split('T')[0]);
+    const d = new Date(cur);
+    while (dates.size < 5) {
+      d.setDate(d.getDate() + 1);
+      if (d.getDay() !== 0 && d.getDay() !== 6) dates.add(d.toISOString().split('T')[0]);
+    }
+    return dates;
+  }
+  function businessDaysUntil(dateStr) {
+    if (!dateStr) return 999;
+    const target = new Date(dateStr + 'T12:00:00');
+    const today  = new Date(); today.setHours(0,0,0,0);
+    if (target < today) return -1;
+    let days = 0; const cur = new Date(today);
+    while (cur < target) {
+      cur.setDate(cur.getDate() + 1);
+      if (cur.getDay() !== 0 && cur.getDay() !== 6) days++;
+    }
+    return days;
+  }
+
+  // ── Date normalization helper ─────────────────────────────────────────────
+  function toISO(dateStr) {
+    if (!dateStr) return null;
+    if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.slice(0,10);
+    const m = String(dateStr).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if (m) {
+      const yr = m[3].length === 2 ? '20'+m[3] : m[3];
+      return `${yr}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+    }
+    return null;
+  }
+
+  // ── Build true install date map from line items ───────────────────────────
+  // Group materialLines by orderNumber; pick most common non-inspection lineInstallDate
+  const linesByOrder = {};
+  if (fs.existsSync(path.join(__dirname, 'materials_data.json'))) {
+    const matData = JSON.parse(fs.readFileSync(path.join(__dirname, 'materials_data.json'), 'utf8')).data || [];
+    matData.forEach(ln => {
+      if (!ln.lineInstallDate || !ln.orderNumber) return;
+      // Exclude inspection lines
+      if (/inspect|pre.?insp|slab.?insp|slab\s*insp/i.test(ln.style || '')) return;
+      const isoDate = toISO(ln.lineInstallDate);
+      if (!isoDate) return;
+      if (!linesByOrder[ln.orderNumber]) linesByOrder[ln.orderNumber] = {};
+      const d = linesByOrder[ln.orderNumber];
+      d[isoDate] = (d[isoDate] || 0) + 1;
+    });
+  }
+  // Build inspection line map (lines with inspection-related descriptions)
+  const inspLinesByOrder = {};
+  if (fs.existsSync(path.join(__dirname, 'materials_data.json'))) {
+    const matData = JSON.parse(fs.readFileSync(path.join(__dirname, 'materials_data.json'), 'utf8')).data || [];
+    matData.forEach(ln => {
+      if (!ln.lineInstallDate || !ln.orderNumber) return;
+      if (!/inspect|pre.?insp|slab.?insp/i.test(ln.style || '')) return;
+      const isoDate = toISO(ln.lineInstallDate);
+      if (!isoDate) return;
+      if (!inspLinesByOrder[ln.orderNumber]) inspLinesByOrder[ln.orderNumber] = [];
+      inspLinesByOrder[ln.orderNumber].push(isoDate);
+    });
+  }
+
+  function getTrueInstallDate(orderNumber, fallback) {
+    const d = linesByOrder[orderNumber];
+    if (!d) return fallback;
+    // Pick most frequent date (already normalized to ISO)
+    const best = Object.entries(d).sort((a,b) => b[1]-a[1])[0];
+    return best ? best[0] : fallback;
+  }
+
+  // ── Filter to Builder NORMAL/MODEL/SAMPLES + SCHEDULED/JOB CUT/INSP FAILED ─
+  const window5 = getNext5BusinessDays();
+  const VALID_STATUS   = new Set(['SCHEDULED', 'JOB CUT', 'INSPECTION FAILED - HALT', 'NEEDS RESCHEDULED']);
+  const VALID_CT       = new Set(['BUILDER']);
+  const VALID_SO       = /^(normal|model.*parade|samples)/i;
+
+  const preinspectRecords = [];
+
+  for (const order of records) {
+    if (!VALID_CT.has(order.customerType || '')) continue;
+    if (!VALID_SO.test(order.serviceOffering || '')) continue;
+    if (!VALID_STATUS.has(order.currentStatus || '')) continue;
+
+    const headerDate  = order.scheduledInstallDate
+      ? String(order.scheduledInstallDate).slice(0,10) : null;
+    const trueDate    = getTrueInstallDate(order.orderNumber, headerDate);
+    if (!trueDate || !window5.has(trueDate)) continue;
+
+    const daysOut = businessDaysUntil(trueDate);
+
+    // ── Pre-fail detection from Work Order Custom notes ───────────────────
+    const wocNotes = (order.notes || []).filter(n => /work.*order.*custom/i.test(n.type||''));
+
+    let preFailEntries = [];
+    let hasPrePassSignal = false;
+    let hasBulderContactSignal = false;
+
+    for (const n of wocNotes) {
+      const sections = (n.comment || '').split(/_{8,}/);
+      for (const section of sections) {
+        const s = section.trim();
+        if (!s) continue;
+
+        // Parse timestamp from first line
+        const firstLine = s.split('\n')[0].trim();
+        const tsMatch = firstLine.match(/(\d{1,2})\/(\d{1,2})\/(\d{4}),\s*(\d{1,2}):(\d{2}):(\d{2})/);
+        let entryDate = null;
+        if (tsMatch) {
+          entryDate = new Date(`${tsMatch[3]}-${tsMatch[1].padStart(2,'0')}-${tsMatch[2].padStart(2,'0')}T${tsMatch[4].padStart(2,'0')}:${tsMatch[5]}:${tsMatch[6]}`);
+        } else if (n.date) {
+          const d = new Date(n.date); if (!isNaN(d)) entryDate = d;
+        }
+
+        // Pre pass / ready signal
+        if (/pre\s*pass|pre\s*ready|pre\s*passed|ready\s+to\s+go/i.test(s)) {
+          hasPrePassSignal = true;
+        }
+        // Builder contact signal
+        if (/reached\s+out|emailed.*builder|emailed.*super|texted.*super|called.*builder/i.test(s)) {
+          hasBulderContactSignal = true;
+        }
+
+        // Pre fail entry — must contain "pre fail", exclude "pre pass/ready" and "post fail"
+        if (!/pre\s+fail/i.test(s)) continue;
+        if (/pre\s*pass|pre\s*ready|post\s*fail/i.test(s)) continue;
+
+        // Extract numbered issues
+        const issues = [];
+        s.split(/\n|\r/).forEach(line => {
+          const m = line.trim().match(/^(?:\d+\.|[-•])\s*(.+)/);
+          if (m && m[1].length > 3) issues.push(m[1].trim());
+        });
+
+        // Inspector name from first line
+        const nameMatch = firstLine.match(/^([A-Za-z][A-Za-z\s\.]+?)\s+\d{1,2}\/\d{1,2}\/\d{4}/);
+        const inspector = nameMatch ? nameMatch[1].trim() : '';
+
+        preFailEntries.push({ section: s, entryDate, inspector, issues });
+      }
+    }
+
+    // Determine preStatus
+    let preStatus = 'no_pre';
+    let preFailDate = null, preFailInspector = '', preFailNote = '', preFailIssues = [];
+
+    if (preFailEntries.length > 0) {
+      // Sort newest first
+      preFailEntries.sort((a,b) => {
+        if (!a.entryDate && !b.entryDate) return 0;
+        if (!a.entryDate) return 1; if (!b.entryDate) return -1;
+        return b.entryDate - a.entryDate;
+      });
+      const latest = preFailEntries[0];
+      preFailInspector = latest.inspector;
+      preFailIssues    = latest.issues;
+      preFailNote      = latest.section.substring(0, 600);
+      if (latest.entryDate && !isNaN(latest.entryDate)) {
+        preFailDate = latest.entryDate.toISOString().split('T')[0];
+      }
+
+      if (hasPrePassSignal) {
+        preStatus = 'pre_pass';
+      } else {
+        preStatus = 'pre_fail';
+      }
+    }
+
+    // Check for pre-inspection line before true install date
+    // Only override pre_fail → pre_on_sched if the inspection line is AFTER the pre-fail date
+    // (meaning a NEW pre was scheduled after the fail — resolution in progress)
+    if (inspLinesByOrder[order.orderNumber] && preStatus !== 'pre_pass') {
+      const inspDates = inspLinesByOrder[order.orderNumber];
+      const today = new Date(); today.setHours(0,0,0,0);
+      const todayISO = today.toISOString().split('T')[0];
+      const hasNewPreLine = inspDates.some(d => {
+        if (!d || !trueDate) return false;
+        if (d >= trueDate) return false; // inspection must be before install
+        if (preFailDate && d <= preFailDate) return false; // must be AFTER the pre-fail date
+        return true; // future or post-fail inspection line
+      });
+      if (hasNewPreLine) preStatus = 'pre_on_sched';
+      else if (preStatus === 'no_pre') {
+        // Has an inspection line but no fail notes — upcoming pre inspection is scheduled
+        const hasAnyPreLine = inspDates.some(d => d && trueDate && d < trueDate);
+        if (hasAnyPreLine) preStatus = 'pre_on_sched';
+      }
+    }
+
+    preinspectRecords.push({
+      orderNumber:      order.orderNumber || '',
+      customerName:     order.customerName || '',
+      store:            order.store || '',
+      jobType:          order.jobType || '',
+      jobNumber:        order.jobNumber || '',
+      lot:              order.lot || '',
+      tract:            order.tract || '',
+      trueInstallDate:  trueDate,
+      headerInstallDate: headerDate,
+      currentStatus:    order.currentStatus || '',
+      daysOut,
+      preStatus,
+      preFailDate,
+      preFailInspector,
+      preFailNote,
+      preFailIssues,
+      notes: order.notes || [],
+    });
+  }
+
+  // Sort: urgency rank asc, then daysOut asc
+  const urgRank = { critical:0, warning:1, watch:2, no_pre:3, ok:4 };
+  function getUrgRank(r) {
+    if (r.preStatus === 'pre_pass' || r.preStatus === 'pre_on_sched') return 4; // ok
+    if (r.preStatus === 'pre_fail') {
+      if (r.daysOut <= 1) return 0;
+      if (r.daysOut <= 3) return 1;
+      return 2;
+    }
+    // no_pre
+    if (r.daysOut <= 1) return 0;
+    if (r.daysOut <= 3) return 1;
+    return 3;
+  }
+  preinspectRecords.sort((a,b) => {
+    const ra = getUrgRank(a), rb = getUrgRank(b);
+    if (ra !== rb) return ra - rb;
+    return a.daysOut - b.daysOut;
+  });
+
+  console.log(`\nEmbedding ${preinspectRecords.length} pre-inspection records into pre-inspect page...`);
+
+  let pihtml = fs.readFileSync(PREINSPECT_HTML, 'utf8');
+  pihtml = pihtml.replace(/\/\/ ──── AUTO-EMBEDDED PREINSPECT[\s\S]*?\/\/ ──── END AUTO-EMBEDDED PREINSPECT\n?/g, '');
+
+  const piBlock = `
+// ──── AUTO-EMBEDDED PREINSPECT (generated ${new Date().toISOString().slice(0,10)}) ────
+const PRELOADED_PREINSPECT = ${JSON.stringify(preinspectRecords)};
+loadPreInspect(PRELOADED_PREINSPECT);
+// ──── END AUTO-EMBEDDED PREINSPECT
+`;
+
+  pihtml = pihtml.replace(
+    "document.getElementById('hdr-sub').textContent = 'No data loaded — run inject_data.js after pulling a new report';",
+    piBlock + "\ndocument.getElementById('hdr-sub').textContent = 'No data loaded — run inject_data.js after pulling a new report';"
+  );
+
+  fs.writeFileSync(PREINSPECT_HTML, pihtml);
+  console.log(`Done — updated ${PREINSPECT_HTML}`);
+  console.log(`File size: ${(fs.statSync(PREINSPECT_HTML).size / 1024).toFixed(0)} KB`);
+
+  global._preinspectOrderNumbers = new Set(preinspectRecords.map(r => r.orderNumber));
+
+  // ── Cleanup stale preinspect_status docs ─────────────────────────────────
+  async function cleanStalePreinspectStatuses() {
+    const active = global._preinspectOrderNumbers;
+    if (!active || active.size === 0) return;
+    const BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/preinspect_status`;
+    try {
+      let deleted = 0, pageToken = null;
+      do {
+        const url = `${BASE}?pageSize=300${pageToken?`&pageToken=${encodeURIComponent(pageToken)}`:''}`;
+        const res = await httpReq(url);
+        if (res.status !== 200) { console.warn(`  preinspect list failed: HTTP ${res.status}`); return; }
+        const obj = JSON.parse(res.body);
+        for (const d of (obj.documents||[])) {
+          const on = d.name.split('/').pop();
+          if (!active.has(on)) {
+            const r = await httpReq(`https://firestore.googleapis.com/v1/${d.name}`, 'DELETE');
+            if (r.status === 200) deleted++;
+          }
+        }
+        pageToken = obj.nextPageToken || null;
+      } while (pageToken);
+      if (deleted > 0) console.log(`  Removed ${deleted} stale preinspect status entries.`);
+    } catch(e) { console.warn('  Could not clean preinspect statuses:', e.message); }
+  }
+  cleanStalePreinspectStatuses();
+
+} else {
+  console.log('Skipping pre-inspect page (preinspect.html not found)');
+}
