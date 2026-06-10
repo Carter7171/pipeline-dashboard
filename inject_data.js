@@ -397,9 +397,10 @@ if (fs.existsSync(PREINSPECT_HTML)) {
   }
   function businessDaysUntil(dateStr) {
     if (!dateStr) return 999;
-    const target = new Date(dateStr + 'T12:00:00');
+    const target = new Date(dateStr + 'T00:00:00');
     const today  = new Date(); today.setHours(0,0,0,0);
     if (target < today) return -1;
+    if (target.getTime() === today.getTime()) return 0;
     let days = 0; const cur = new Date(today);
     while (cur < target) {
       cur.setDate(cur.getDate() + 1);
