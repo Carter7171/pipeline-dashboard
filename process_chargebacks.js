@@ -7,39 +7,150 @@ const path = require('path');
 const INPUT  = path.join(__dirname, 'chargebacks_report.xlsx');
 const OUTPUT = path.join(__dirname, 'chargebacks_data.json');
 
-// ─── ISSUE KEYWORD TAXONOMY ──────────────────────────────────────────────────
-// Precedence order — first match wins
-const ISSUE_RULES = [
-  { keywords: ['seam'],                 label: 'Bad Seam' },
-  { keywords: ['transition'],           label: 'Transition' },
-  { keywords: ['buckl'],                label: 'Buckling' },
-  { keywords: ['lippage'],              label: 'Lippage' },
-  { keywords: ['scratch'],              label: 'Scratched' },
-  { keywords: ['stain'],                label: 'Stained' },
-  { keywords: ['wrinkle'],              label: 'Wrinkle' },
-  { keywords: ['re-stretch','restretch','re stretch','stretch'], label: 'Re-Stretch' },
-  { keywords: ['tack strip','tackstrip'], label: 'Tack Strip' },
-  { keywords: ['damage','damaged'],     label: 'Damage' },
-  { keywords: ['adhesive','glue'],      label: 'Adhesive' },
-  { keywords: ['grout'],                label: 'Grout Issue' },
-  { keywords: ['measur'],               label: 'Measure Error' },
-  { keywords: ['pattern','misalign'],   label: 'Pattern Error' },
-  { keywords: ['gap'],                  label: 'Gap' },
-  { keywords: ['clean','debris','trash','sweep'], label: 'Cleanup' },
-  { keywords: ['cut ','cutting'],       label: 'Poor Cut' },
-  { keywords: ['warranty'],             label: 'Warranty' },
-  { keywords: ['repair'],               label: 'Repair' },
-  { keywords: ['squeaky','squeak'],     label: 'Squeak' },
-  { keywords: ['hollow','delamina'],    label: 'Delamination' },
-  { keywords: ['lippage'],              label: 'Lippage' },
+// ─── ISSUE DETECTION ─────────────────────────────────────────────────────────
+// Step 1: Extract the "mechanics claim due to X" phrase from Order Internal notes.
+//         This is the most reliable source — set by the service coordinator.
+// Step 2: Normalize the extracted reason text into a clean label.
+// Step 3: Fall back to full-note keyword scanning if step 1 yields nothing.
+
+function normalizeReason(raw) {
+  if (!raw) return null;
+  const r = raw.toLowerCase().trim();
+
+  // SHORT MATERIAL — installer ran short, didn't cover the area
+  if (/\bshort\b|cut short|being short|install short|cut wrong|cut to short|cutting to short|cut too short|lvt short|lvp short|carpet short|laminate short|tile short|vinyl short|short boards|short lvt|short lvp|short carpet|short laminate|short install|short at|plank.{0,10}short|board.{0,10}short/.test(r))
+    return 'Short Material';
+
+  // INCOMPLETE INSTALL — didn't finish the job
+  if (/incomplete|not finishing|not complet|leaving unfinish|left unfinish|unfinished|not done at install|not finish|missing area|missed area|not installed|missing section|not properly finish|not properly complet|installer not finishing|installer not completing|installer missing|being incomplete/.test(r))
+    return 'Incomplete Install';
+
+  // NOT FOLLOWING WORK ORDER — ignored specs/prints/builder instructions
+  if (/work order|work sheet|builder spec|prints|builder req|spec\b|builder direction|per the order|per order/.test(r))
+    return 'Not Per Work Order';
+
+  // LOOSE / COMING UP / SEPARATING — material not secured
+  if (/\bloose\b|coming up|pulling away|separat|shifting|not secure|not tucked|coming loose|not locked|plank.{0,10}loose|carpet.{0,10}loose|tile.{0,10}loose|lvt.{0,10}loose|lvp.{0,10}loose|lvt coming|lvp coming|separating|lvt separ|planks separ/.test(r))
+    return 'Loose / Coming Up';
+
+  // SILICONE / CAULK — missing or poor silicone/caulk
+  if (/\bsilicone\b|\bcaulk/.test(r))
+    return 'Missing Silicone';
+
+  // ADHESIVE / GLUE — not enough adhesive/glue/mortar
+  if (/adhesive|lack of glue|not.{0,10}enough glue|not.{0,10}glue|lack of mortar|thinset coverage|improper.{0,10}coverage|not enough adhesive|lack of adhesive|minimal adhesive/.test(r))
+    return 'Adhesive Issue';
+
+  // DEBRIS / CLEANUP — installed over debris, messy install
+  if (/\bdebris\b|clean up|clean-up|cleanup|not cleaning|messy install|installing over debris|laying over debris|sloppy clean|improper clean|left.{0,10}mess|excess grout|glue residue|guide marks/.test(r))
+    return 'Debris / Cleanup';
+
+  // OUT OF SQUARE / CROOKED / LEVEL
+  if (/out of square|out of level|crooked|not square|being crooked|installed out of square|installed crooked|out of alignment|not level/.test(r))
+    return 'Out of Square';
+
+  // EXPANSION ISSUE — improper or missing expansion gap
+  if (/expansion|no expansion|lack of expansion|expansion gap|not enough expansion|too much expansion|impropper expansion|improper expansion/.test(r))
+    return 'Expansion Issue';
+
+  // GROUT — grout problems (already in keyword fallback, keep here for "due to" extractions)
+  if (/\bgrout\b/.test(r))
+    return 'Grout Issue';
+
+  // SEAM — visible or bad seams
+  if (/\bseam\b/.test(r))
+    return 'Bad Seam';
+
+  // TRANSITION / STAIRNOSE / METALS — transition/metal trim issues
+  if (/transition|stairnose|stair.?nose|reducer|naploc|t-molding|\bmetal\b|tubmold|tub mold|tub strip|cove base|stair nose|rubber shoe/.test(r))
+    return 'Transition';
+
+  // SQUEAK — floor/subfloor squeak
+  if (/squeak|squak|floor squeak|subfloor squeak/.test(r))
+    return 'Squeak';
+
+  // DAMAGE / CRACKING — damaged, cracked, broken material
+  if (/\bdamage\b|\bcrack\b|\bbroken\b|chipped|damaged|cracking/.test(r))
+    return 'Damage';
+
+  // WRONG MATERIAL — wrong tile/color/material installed
+  if (/wrong tile|wrong grout|wrong material|incorrect tile|wrong color|wrong product/.test(r))
+    return 'Wrong Material';
+
+  // SCRATCH / STAIN
+  if (/\bscratch/.test(r)) return 'Scratched';
+  if (/\bstain/.test(r))   return 'Stained';
+
+  // LIPPAGE
+  if (/lippage/.test(r)) return 'Lippage';
+
+  // BUCKLE / WRINKLE
+  if (/\bbuckl/.test(r)) return 'Buckling';
+  if (/\bwrinkle/.test(r)) return 'Wrinkle';
+
+  // RE-STRETCH
+  if (/re.?stretch|stretch/.test(r)) return 'Re-Stretch';
+
+  // TACK STRIP
+  if (/tack strip/.test(r)) return 'Tack Strip';
+
+  // WORKMANSHIP — generic poor/improper work (catch-all after specifics)
+  if (/poor craft|poor work|improper|imrproper|improepr|inproper|imprper|impproper|installer error|insteller error|poor install|sloppy|bad install|install error|poor fabricat/.test(r))
+    return 'Workmanship';
+
+  return null; // fallback to keyword scan
+}
+
+// Fallback: keyword scan across ALL note text (used when no "due to" phrase found)
+const FALLBACK_RULES = [
+  { kw: ['visible seam','bad seam','seam coming','seam apart','seam in carpet','missed seam','seams coming'], label: 'Bad Seam' },
+  { kw: ['transition','stairnose','stair nose','naploc','t-molding','tub mold','tub strip','cove base'], label: 'Transition' },
+  { kw: ['buckling','buckle'],                     label: 'Buckling' },
+  { kw: ['lippage','lipped tile'],                 label: 'Lippage' },
+  { kw: ['scratch'],                               label: 'Scratched' },
+  { kw: ['stained','stain on'],                    label: 'Stained' },
+  { kw: ['wrinkle'],                               label: 'Wrinkle' },
+  { kw: ['re-stretch','re stretch','restretch'],   label: 'Re-Stretch' },
+  { kw: ['tack strip'],                            label: 'Tack Strip' },
+  { kw: ['squeak'],                                label: 'Squeak' },
+  { kw: ['hollow spot','lack of mortar','delamina'], label: 'Delamination' },
+  { kw: ['adhesive','lack of glue','not enough glue','lack of adhesive','minimal adhesive'], label: 'Adhesive Issue' },
+  { kw: ['grout'],                                 label: 'Grout Issue' },
+  { kw: ['debris','installing over debris','laying over debris','installed over debris'], label: 'Debris / Cleanup' },
+  { kw: ['out of square','out of level','installed crooked'], label: 'Out of Square' },
+  { kw: ['expansion gap','improper expansion','no expansion'], label: 'Expansion Issue' },
+  { kw: ['silicone','caulk'],                      label: 'Missing Silicone' },
+  { kw: ['short','cut short'],                     label: 'Short Material' },
+  { kw: ['loose','coming up','pulling away','separating'], label: 'Loose / Coming Up' },
+  { kw: ['incomplete','not finishing','unfinished'], label: 'Incomplete Install' },
+  { kw: ['work order','builder spec'],             label: 'Not Per Work Order' },
+  { kw: ['damage','cracked','broken','chipped'],   label: 'Damage' },
+  { kw: ['wrong tile','wrong grout','wrong material'], label: 'Wrong Material' },
+  { kw: ['clean up','cleanup','messy','debris'],   label: 'Debris / Cleanup' },
+  { kw: ['improper','poor craft','poor work','installer error','poor install'], label: 'Workmanship' },
 ];
 
 function detectIssue(notes) {
   if (!notes || !notes.length) return 'Other';
-  const allText = notes.map(n => (n.comment || '') + ' ' + (n.type || '')).join(' ').toLowerCase();
-  for (const rule of ISSUE_RULES) {
-    if (rule.keywords.some(kw => allText.includes(kw))) return rule.label;
+
+  // Step 1: find "mechanics claim due to X" in Order Internal notes first
+  const internalNotes = notes.filter(n => /order.internal/i.test(n.type||''));
+  const allNotes = [...internalNotes, ...notes.filter(n => !/order.internal/i.test(n.type||''))];
+
+  for (const n of allNotes) {
+    const m = (n.comment||'').match(/mechanics?\s+claim\s+due\s+to\s+([^.\n\r]{3,80})/i);
+    if (m) {
+      const label = normalizeReason(m[1]);
+      if (label) return label;
+    }
   }
+
+  // Step 2: fallback keyword scan across all note text
+  const allText = notes.map(n => (n.comment||'') + ' ' + (n.type||'')).join(' ').toLowerCase();
+  for (const rule of FALLBACK_RULES) {
+    if (rule.kw.some(kw => allText.includes(kw))) return rule.label;
+  }
+
   return 'Other';
 }
 
