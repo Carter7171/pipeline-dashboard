@@ -339,7 +339,8 @@ const S = {
   filtered: [],
   allIssues: [],
   activeIssues: new Set(),
-  storeFilter: 'all',
+  allStores: [],
+  activeStores: new Set(),
   periodDays: 0,   // 0 = all
   instFilter: null,
   instSort: 'count',
@@ -374,17 +375,24 @@ function loadChargebacks(records) {
   S.allIssues = issues;
   S.activeIssues = new Set(issues);
 
-  // Store chips
+  // Store chips — multi-select, all on by default
+  S.allStores = stores.slice();
+  S.activeStores = new Set(stores);
   const sc = document.getElementById('fc-store');
-  sc.innerHTML = '<div class="chip active" data-store="all" onclick="setStore(this)">All</div>' +
-    stores.map(s=>`<div class="chip" data-store="${s}" onclick="setStore(this)">${s}</div>`).join('');
+  sc.innerHTML = stores.map(s =>
+    `<div class="chip active" data-store="${s}" onclick="toggleStore(this)">${s}</div>`
+  ).join('');
 
-  // Issue chips (multi-select, all on by default)
+  // Issue chips — multi-select with "All" toggle
+  S.allIssues = issues;
+  S.activeIssues = new Set(issues);
   const ic = document.getElementById('fc-issue');
-  ic.innerHTML = issues.map(iss => {
-    const col = issueColor(iss);
-    return `<div class="chip active" data-issue="${escHtml(iss)}" onclick="toggleIssue(this)" style="border-color:${col};color:${col};background:${col}18">${escHtml(iss)}</div>`;
-  }).join('');
+  ic.innerHTML =
+    `<div class="chip active" data-issue-all onclick="toggleAllIssues(this)">All</div>` +
+    issues.map(iss => {
+      const col = issueColor(iss);
+      return `<div class="chip active" data-issue="${escHtml(iss)}" onclick="toggleIssue(this)" style="border-color:${col};color:${col};background:${col}18">${escHtml(iss)}</div>`;
+    }).join('');
 
   const dateRange = records.length ? (() => {
     const dates = records.map(r=>r.closedDate).filter(Boolean).sort();
@@ -398,10 +406,15 @@ function loadChargebacks(records) {
 }
 
 // ─── FILTER CONTROLS ─────────────────────────────────────────────────────────
-function setStore(chip) {
-  document.querySelectorAll('#fc-store .chip').forEach(c=>c.classList.remove('active'));
-  chip.classList.add('active');
-  S.storeFilter = chip.dataset.store;
+function toggleStore(chip) {
+  const s = chip.dataset.store;
+  if (S.activeStores.has(s)) {
+    if (S.activeStores.size === 1) return; // keep at least one
+    S.activeStores.delete(s);
+  } else {
+    S.activeStores.add(s);
+  }
+  chip.classList.toggle('active', S.activeStores.has(s));
   S.page = 1;
   applyFilters();
 }
@@ -410,8 +423,28 @@ function toggleIssue(chip) {
   if (S.activeIssues.has(iss)) S.activeIssues.delete(iss);
   else                          S.activeIssues.add(iss);
   chip.classList.toggle('active', S.activeIssues.has(iss));
-  if (!S.activeIssues.has(iss)) chip.style.opacity = '0.4';
-  else chip.style.opacity = '';
+  chip.style.opacity = S.activeIssues.has(iss) ? '' : '0.4';
+  // Update "All" chip state
+  const allChip = document.querySelector('#fc-issue [data-issue-all]');
+  if (allChip) allChip.classList.toggle('active', S.activeIssues.size === S.allIssues.length);
+  S.page = 1;
+  applyFilters();
+}
+function toggleAllIssues(chip) {
+  const allOn = S.activeIssues.size === S.allIssues.length;
+  if (allOn) {
+    // Turn all off except first
+    S.activeIssues = new Set([S.allIssues[0]]);
+  } else {
+    S.activeIssues = new Set(S.allIssues);
+  }
+  // Sync chip states
+  document.querySelectorAll('#fc-issue [data-issue]').forEach(c => {
+    const on = S.activeIssues.has(c.dataset.issue);
+    c.classList.toggle('active', on);
+    c.style.opacity = on ? '' : '0.4';
+  });
+  chip.classList.toggle('active', S.activeIssues.size === S.allIssues.length);
   S.page = 1;
   applyFilters();
 }
@@ -446,7 +479,7 @@ function applyFilters() {
   const cutoff = S.periodDays > 0 ? new Date(TODAY.getTime() - S.periodDays*86400000) : null;
 
   const data = S.rawData.filter(r => {
-    if (S.storeFilter !== 'all' && r.store !== S.storeFilter) return false;
+    if (S.allStores.length && !S.activeStores.has(r.store)) return false;
     if (!S.activeIssues.has(r.issueTag)) return false;
     if (S.instFilter && r.installerName !== S.instFilter) return false;
     if (cutoff && r.closedDate) {
@@ -762,6 +795,8 @@ function exportCSV() {
 }
 
 // PRELOADED_CHARGEBACKS is injected by inject_data.js
+
+
 
 
 
