@@ -67,6 +67,9 @@ function loadPreprocessedData(records) {
   const jobTypes = uniq(S.rawData.map(r=>r.jobType).filter(Boolean)).sort();
   buildJobTypePanel(jobTypes);  // initializes S.activeJobTypes and S.allJobTypes
 
+  const customers = uniq(S.rawData.map(r=>r.customerName).filter(Boolean)).sort();
+  buildCustomerPanel(customers);  // initializes S.activeCustomers and S.allCustomers
+
   document.getElementById('kn-current').textContent = MONTHS[TODAY.getMonth()];
   document.getElementById('kn-next').textContent    = MONTHS[(TODAY.getMonth()+1)%12];
   document.getElementById('lbl-updated').textContent =
