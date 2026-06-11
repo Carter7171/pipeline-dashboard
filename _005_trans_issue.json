@@ -1,0 +1,859 @@
+[
+  {
+    "orderNumber": "CG639277",
+    "builder": "D.R. HORTON OF LOUISVILLE",
+    "jobNum": "KCB 29 - LVT",
+    "lot": "29",
+    "tract": "CEDAR BROOK",
+    "installDate": "2026-07-24",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "RVSNP",
+        "style": "AFS STOCKING LVT OVERLAP STAIRNOSE 78\" (STOCK COLORS)",
+        "color": "06886",
+        "qty": 1,
+        "status": "NONE"
+      },
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "06886",
+        "qty": 5,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG639358",
+    "builder": "D.R. HORTON OF LOUISVILLE",
+    "jobNum": "KCB 34 - LVT",
+    "lot": "34",
+    "tract": "CEDAR BROOK",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "RVSNP",
+        "style": "AFS STOCKING LVT OVERLAP STAIRNOSE 78\" (STOCK COLORS)",
+        "color": "06886",
+        "qty": 1,
+        "status": "NONE"
+      },
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "06886",
+        "qty": 5,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG639391",
+    "builder": "D.R. HORTON OF LOUISVILLE",
+    "jobNum": "KCB 30 - LVT",
+    "lot": "30",
+    "tract": "Cedar Brook",
+    "installDate": "2026-07-24",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "RVSNP",
+        "style": "AFS STOCKING LVT OVERLAP STAIRNOSE 78\" (STOCK COLORS)",
+        "color": "06886",
+        "qty": 1,
+        "status": "NONE"
+      },
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "06886",
+        "qty": 1,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG636084",
+    "builder": "D.R. HORTON OF LOUISVILLE",
+    "jobNum": "KCB 31 - LVT",
+    "lot": "31",
+    "tract": "CEDAR BROOK",
+    "installDate": "2026-07-17",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "RVSNP",
+        "style": "AFS STOCKING LVT OVERLAP STAIRNOSE 78\" (STOCK COLORS)",
+        "color": "TO BE DETERMINED",
+        "qty": 1,
+        "status": "NONE"
+      },
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "TO BE DETERMINED",
+        "qty": 4,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG639946",
+    "builder": "PULTE HOMES OF LOUISV MS 1050",
+    "jobNum": "KAR TCG 4.5 114 - LVT",
+    "lot": "114",
+    "tract": "AIKEN RIDGE TCG 4.5",
+    "installDate": "2026-07-30",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "RD3HB",
+        "style": "REDUCER 3.4 6.6MM",
+        "color": "DRIFTWOOD",
+        "qty": 2,
+        "status": "On Order 6/19/2026"
+      },
+      {
+        "itemNo": "BT3HB",
+        "style": "BABY THRESHOLD W TRACK (STOCK COLOR)",
+        "color": "DRIFTWOOD",
+        "qty": 3,
+        "status": "On Order 6/19/2026"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG639990",
+    "builder": "PULTE HOMES OF LOUISV MS 1050",
+    "jobNum": "KAM TCG 4.5 137 - LVT",
+    "lot": "137",
+    "tract": "ARDMORE TCG 4.5",
+    "installDate": "2026-07-13",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "04515",
+        "qty": 4,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG627450",
+    "builder": "PULTE HOMES OF LOUISV MS 1050",
+    "jobNum": "KCTF 176 - LVT",
+    "lot": "176",
+    "tract": "Catalpa Farms",
+    "installDate": "2026-06-22",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "FS4HB",
+        "style": "FLSN4.5W4.5 5.4",
+        "color": "WILD DUNES",
+        "qty": 1,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG637174",
+    "builder": "D.R. HORTON OF LOUISVILLE",
+    "jobNum": "KCB 33 - LVT",
+    "lot": "33",
+    "tract": "CEDAR BROOK",
+    "installDate": "2026-07-24",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "RVSNP",
+        "style": "AFS STOCKING LVT OVERLAP STAIRNOSE 78\" (STOCK COLORS)",
+        "color": "05718",
+        "qty": 1,
+        "status": "NONE"
+      },
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "05718",
+        "qty": 4,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG639767",
+    "builder": "PULTE HOMES OF LOUISV MS 1050",
+    "jobNum": "KAR TCG 4.5 89 - LVT - CLICK",
+    "lot": "89",
+    "tract": "AIKEN RIDGE TCG 4.5",
+    "installDate": "2026-07-29",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "04515",
+        "qty": 3,
+        "status": "NONE"
+      },
+      {
+        "itemNo": "RVSNP",
+        "style": "AFS STOCKING LVT OVERLAP STAIRNOSE 78\" (STOCK COLORS)",
+        "color": "04515",
+        "qty": 1,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG633848",
+    "builder": "PULTE HOMES OF LOUISV MS 1050",
+    "jobNum": "KAM TCG 4.5 140 - LVP",
+    "lot": "140",
+    "tract": "ARDMORE TCG 4.5 COMBINED",
+    "installDate": "2026-06-23",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "04515",
+        "qty": 4,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG638905",
+    "builder": "PULTE HOMES OF LOUISV MS 1050",
+    "jobNum": "KAR TCG 4 96 - LVT - CLICK",
+    "lot": "96",
+    "tract": "AIKEN RIDGE TCG 4",
+    "installDate": "2026-07-08",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "BT3HB",
+        "style": "BABY THRESHOLD W TRACK (STOCK COLOR)",
+        "color": "MARINA",
+        "qty": 4,
+        "status": "On Order 6/15/2026"
+      },
+      {
+        "itemNo": "FS4HB",
+        "style": "FLSN4.5W4.5 5.4",
+        "color": "MARINA",
+        "qty": 1,
+        "status": "On Order 6/15/2026"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG638213",
+    "builder": "PULTE HOMES OF LOUISV MS 1050",
+    "jobNum": "KAR TCG 4 76 - LVT CLICK",
+    "lot": "76",
+    "tract": "AIKEN RIDGE TCG 4",
+    "installDate": "2026-07-08",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "04515",
+        "qty": 4,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG633047",
+    "builder": "PULTE HOMES OF LOUISV MS 1050",
+    "jobNum": "KAR TCG 4 71 - LVT",
+    "lot": "71",
+    "tract": "Aiken Ridge TCG 4",
+    "installDate": "2026-07-01",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "04515",
+        "qty": 4,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG638847",
+    "builder": "PULTE HOMES OF LOUISV MS 1050",
+    "jobNum": "KAR TCG 4.5 115 - LVT - CLICK",
+    "lot": "115",
+    "tract": "AIKEN RIDGE TCG 4.5",
+    "installDate": "2026-07-13",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "BT3HB",
+        "style": "BABY THRESHOLD W TRACK (STOCK COLOR)",
+        "color": "DRIFTWOOD",
+        "qty": 2,
+        "status": "On Order 6/22/2026"
+      },
+      {
+        "itemNo": "RD3HB",
+        "style": "REDUCER 3.4 6.6MM",
+        "color": "DRIFTWOOD",
+        "qty": 1,
+        "status": "On Order 6/22/2026"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG633629",
+    "builder": "PULTE HOMES OF LOUISV MS 1050",
+    "jobNum": "KCS TCG 4.5 39 - LVP",
+    "lot": "39",
+    "tract": "CREEKSTONE TCG 4.5 PACKAG",
+    "installDate": "2026-06-25",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "BT7HB",
+        "style": "BABY THRESHOLD W TRACK",
+        "color": "NUTMEG",
+        "qty": 2,
+        "status": "NONE"
+      },
+      {
+        "itemNo": "FS6HB",
+        "style": "FLUSH SN 4.5  WIDE 6.5   7.4MM",
+        "color": "NUTMEG",
+        "qty": 1,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG614993",
+    "builder": "ELITE HOMES",
+    "jobNum": "RLE 110 - LVT",
+    "lot": "110",
+    "tract": "Reserve at L'Esprit",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "03760",
+        "qty": 1,
+        "status": "NONE"
+      },
+      {
+        "itemNo": "RVSNP",
+        "style": "AFS STOCKING LVT OVERLAP STAIRNOSE 78\" (STOCK COLORS)",
+        "color": "03760",
+        "qty": 1,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG635910",
+    "builder": "ARBOR HOMES - LOUISVILLE",
+    "jobNum": "DIETR 28 - LVT",
+    "lot": "28",
+    "tract": "Dietrich Farms",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "04515",
+        "qty": 1,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG640672",
+    "builder": "ARBOR HOMES - LOUISVILLE",
+    "jobNum": "OLH 286 - LVT",
+    "lot": "286",
+    "tract": "Old Heritage",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "03760",
+        "qty": 2,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG639322",
+    "builder": "ARBOR HOMES - LOUISVILLE",
+    "jobNum": "OE 259 - LVT",
+    "lot": "259",
+    "tract": "The Overlook at Eastwood",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "05717",
+        "qty": 1,
+        "status": "NONE"
+      },
+      {
+        "itemNo": "RVSNP",
+        "style": "AFS STOCKING LVT OVERLAP STAIRNOSE 78\" (STOCK COLORS)",
+        "color": "05717",
+        "qty": 1,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG627215",
+    "builder": "FISCHER HOMES OF LOUISVILLE",
+    "jobNum": "SMK 425 - LVT",
+    "lot": "425",
+    "tract": "Sanctuary at Mallard Lake",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "04634",
+        "qty": 4,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG615389",
+    "builder": "ELITE HOMES",
+    "jobNum": "RLE 158 - LVT",
+    "lot": "158",
+    "tract": "Reserve at L'Esprit",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "04634",
+        "qty": 2,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG621352",
+    "builder": "ARBOR HOMES - LOUISVILLE",
+    "jobNum": "OLH 3 - LVT",
+    "lot": "3",
+    "tract": "Old Heritage",
+    "installDate": "2026-07-02",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "RVSNP",
+        "style": "AFS STOCKING LVT OVERLAP STAIRNOSE 78\" (STOCK COLORS)",
+        "color": "05735",
+        "qty": 1,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG616779",
+    "builder": "ELITE HOMES",
+    "jobNum": "RLE 126 - LVT",
+    "lot": "126",
+    "tract": "Reserve at L'Esprit",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "05763",
+        "qty": 4,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG609415",
+    "builder": "ELITE HOMES",
+    "jobNum": "RO 16 - LVT",
+    "lot": "16",
+    "tract": "Royal Oaks",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "03760",
+        "qty": 2,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG602087",
+    "builder": "ELITE HOMES",
+    "jobNum": "RO 36 - LVT",
+    "lot": "36",
+    "tract": "Royal Oaks",
+    "installDate": "2026-06-22",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "TO BE DETERMINED",
+        "qty": 5,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG628940",
+    "builder": "D.R. HORTON OF LOUISVILLE",
+    "jobNum": "KCB 32 - LVT",
+    "lot": "32",
+    "tract": "CEDAR BROOK",
+    "installDate": "2026-07-14",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "05718",
+        "qty": 2,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG632867",
+    "builder": "ARBOR HOMES - LOUISVILLE",
+    "jobNum": "BROST 509 - LVT",
+    "lot": "509",
+    "tract": "Brookstone",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "BT7HB",
+        "style": "BABY THRESHOLD W TRACK",
+        "color": "WARM HONEY",
+        "qty": 1,
+        "status": "On Order 6/17/2026"
+      },
+      {
+        "itemNo": "FS6HB",
+        "style": "FLUSH SN 4.5  WIDE 6.5   7.4MM",
+        "color": "WARM HONEY",
+        "qty": 1,
+        "status": "On Order 6/17/2026"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG630020",
+    "builder": "FISCHER HOMES OF LOUISVILLE",
+    "jobNum": "VHC 64 - LVT",
+    "lot": "64",
+    "tract": "Villages at Heritage Cree",
+    "installDate": "2026-07-03",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "06942",
+        "qty": 3,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG606390",
+    "builder": "ELITE HOMES",
+    "jobNum": "RLE 132 - LVT",
+    "lot": "132",
+    "tract": "Reserve at L'Esprit",
+    "installDate": "2026-06-10",
+    "orderStatus": "JOB CUT",
+    "transitions": [
+      {
+        "itemNo": "RD7HB",
+        "style": "MULTI PR RD",
+        "color": "MARZIPAN",
+        "qty": 4,
+        "status": "On Order 6/17/2026"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG603773",
+    "builder": "ELITE HOMES",
+    "jobNum": "RLE 133 - LVT",
+    "lot": "133",
+    "tract": "Reserve at L'Esprit",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "05717",
+        "qty": 3,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG610686",
+    "builder": "ELITE HOMES",
+    "jobNum": "RLE 134 - LVT",
+    "lot": "134",
+    "tract": "Reserve at L'Esprit",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "RD7HB",
+        "style": "MULTI PR RD",
+        "color": "TUXEDO BRONZE",
+        "qty": 3,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG633604",
+    "builder": "FISCHER HOMES OF LOUISVILLE",
+    "jobNum": "BTH 301 - LVT",
+    "lot": "301",
+    "tract": "Bethel Springs",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "RVSNP",
+        "style": "AFS STOCKING LVT OVERLAP STAIRNOSE 78\" (STOCK COLORS)",
+        "color": "06942",
+        "qty": 1,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG630432",
+    "builder": "FISCHER HOMES OF LOUISVILLE",
+    "jobNum": "BGM 129 - LVT",
+    "lot": "129",
+    "tract": "Bluegrass Meadow",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "04634",
+        "qty": 3,
+        "status": "NONE"
+      },
+      {
+        "itemNo": "RVSNP",
+        "style": "AFS STOCKING LVT OVERLAP STAIRNOSE 78\" (STOCK COLORS)",
+        "color": "04634",
+        "qty": 1,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG632715",
+    "builder": "FISCHER HOMES OF LOUISVILLE",
+    "jobNum": "HPT 128A - LVT",
+    "lot": "128A",
+    "tract": "Harvest Point",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "04634",
+        "qty": 1,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG633585",
+    "builder": "FISCHER HOMES OF LOUISVILLE",
+    "jobNum": "HPT 128B - LVT",
+    "lot": "128B",
+    "tract": "Harvest Point",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "06942",
+        "qty": 1,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG630191",
+    "builder": "FISCHER HOMES OF LOUISVILLE",
+    "jobNum": "BTH 212 - LVT",
+    "lot": "212",
+    "tract": "Bethel Springs",
+    "installDate": "2026-07-01",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "04634",
+        "qty": 1,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG601976",
+    "builder": "ELITE HOMES",
+    "jobNum": "RLE 129 - LVT",
+    "lot": "129",
+    "tract": "Reserve at L'Esprit",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "05717",
+        "qty": 2,
+        "status": "NONE"
+      },
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "TO BE DETERMINED",
+        "qty": 2,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG634534",
+    "builder": "TAYLOR HOMES - LOUISVILLE",
+    "jobNum": "15870 - LVT",
+    "lot": "15870 Mahoney",
+    "tract": "15870 Mahoney",
+    "installDate": "",
+    "orderStatus": "",
+    "transitions": [
+      {
+        "itemNo": "RVSNP",
+        "style": "AFS STOCKING LVT OVERLAP STAIRNOSE 78\" (STOCK COLORS)",
+        "color": "03760",
+        "qty": 1,
+        "status": "NONE"
+      },
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "03760",
+        "qty": 4,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG619308",
+    "builder": "D.R. HORTON OF LOUISVILLE",
+    "jobNum": "KCB 50 - LVT",
+    "lot": "50",
+    "tract": "CEDAR BROOK",
+    "installDate": "2026-06-26",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "RVSNP",
+        "style": "AFS STOCKING LVT OVERLAP STAIRNOSE 78\" (STOCK COLORS)",
+        "color": "05718",
+        "qty": 1,
+        "status": "NONE"
+      },
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "05718",
+        "qty": 2,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG618649",
+    "builder": "FISCHER HOMES OF LOUISVILLE",
+    "jobNum": "SMK 424 - LVT",
+    "lot": "424",
+    "tract": "Sanctuary at Mallard Lake",
+    "installDate": "2026-06-26",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "05717",
+        "qty": 8,
+        "status": "NONE"
+      }
+    ]
+  },
+  {
+    "orderNumber": "CG619339",
+    "builder": "FISCHER HOMES OF LOUISVILLE",
+    "jobNum": "SMK 428 - LVT",
+    "lot": "428",
+    "tract": "Sanctuary at Mallard Lake",
+    "installDate": "2026-06-25",
+    "orderStatus": "SCHEDULED",
+    "transitions": [
+      {
+        "itemNo": "V4N1",
+        "style": "AFS STOCKING LVT 4IN1 MOLDING 78\" (STOCK COLORS)",
+        "color": "06940",
+        "qty": 2,
+        "status": "NONE"
+      }
+    ]
+  }
+]
