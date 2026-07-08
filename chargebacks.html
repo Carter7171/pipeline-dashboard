@@ -183,6 +183,11 @@ tr:hover td{background:rgba(255,255,255,.025)}
   <span class="filter-label">Issue</span>
   <div class="filter-chips" id="fc-issue"></div>
   <div class="fdivider"></div>
+  <span class="filter-label">Order Type</span>
+  <div class="filter-chips" id="fc-jobtype">
+    <div class="chip active" data-jt-all onclick="toggleAllJobTypes(this)">All</div>
+  </div>
+  <div class="fdivider"></div>
   <span class="filter-label">Period</span>
   <div class="filter-chips">
     <div class="chip active" data-pd="all"  onclick="setPeriod(this)">All Time</div>
@@ -343,6 +348,8 @@ const S = {
   activeIssues: new Set(),
   allStores: [],
   activeStores: new Set(),
+  allJobTypes: [],
+  activeJobTypes: new Set(),
   periodDays: 0,   // 0 = all
   instFilter: null,
   chartIssueFilter: null,  // issue tag selected from bar chart
@@ -396,6 +403,17 @@ function loadChargebacks(records) {
       const col = issueColor(iss);
       return `<div class="chip active" data-issue="${escHtml(iss)}" onclick="toggleIssue(this)" style="border-color:${col};color:${col};background:${col}18">${escHtml(iss)}</div>`;
     }).join('');
+
+  // Job Type chips — multi-select, all on by default
+  const jobTypes = [...new Set(records.map(r=>r.jobType).filter(Boolean))].sort();
+  S.allJobTypes = jobTypes;
+  S.activeJobTypes = new Set(jobTypes);
+  const jc = document.getElementById('fc-jobtype');
+  jc.innerHTML =
+    `<div class="chip active" data-jt-all onclick="toggleAllJobTypes(this)">All</div>` +
+    jobTypes.map(jt =>
+      `<div class="chip active" data-jt="${escHtml(jt)}" onclick="toggleJobType(this)">${escHtml(jt)}</div>`
+    ).join('');
 
   const dateRange = records.length ? (() => {
     const dates = records.map(r=>r.closedDate).filter(Boolean).sort();
@@ -451,6 +469,37 @@ function toggleAllIssues(chip) {
   S.page = 1;
   applyFilters();
 }
+function toggleJobType(chip) {
+  const jt = chip.dataset.jt;
+  if (S.activeJobTypes.has(jt)) {
+    if (S.activeJobTypes.size === 1) return;
+    S.activeJobTypes.delete(jt);
+  } else {
+    S.activeJobTypes.add(jt);
+  }
+  chip.classList.toggle('active', S.activeJobTypes.has(jt));
+  chip.style.opacity = S.activeJobTypes.has(jt) ? '' : '0.4';
+  const allChip = document.querySelector('#fc-jobtype [data-jt-all]');
+  if (allChip) allChip.classList.toggle('active', S.activeJobTypes.size === S.allJobTypes.length);
+  S.page = 1;
+  applyFilters();
+}
+function toggleAllJobTypes(chip) {
+  const allOn = S.activeJobTypes.size === S.allJobTypes.length;
+  if (allOn) {
+    S.activeJobTypes = new Set([S.allJobTypes[0]]);
+  } else {
+    S.activeJobTypes = new Set(S.allJobTypes);
+  }
+  document.querySelectorAll('#fc-jobtype [data-jt]').forEach(c => {
+    const on = S.activeJobTypes.has(c.dataset.jt);
+    c.classList.toggle('active', on);
+    c.style.opacity = on ? '' : '0.4';
+  });
+  chip.classList.toggle('active', S.activeJobTypes.size === S.allJobTypes.length);
+  S.page = 1;
+  applyFilters();
+}
 function setPeriod(chip) {
   chip.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
   chip.classList.add('active');
@@ -491,6 +540,7 @@ function applyFilters() {
   const data = S.rawData.filter(r => {
     if (S.allStores.length && !S.activeStores.has(r.store)) return false;
     if (!S.activeIssues.has(r.issueTag)) return false;
+    if (S.allJobTypes.length && !S.activeJobTypes.has(r.jobType)) return false;
     if (S.instFilter && r.installerName !== S.instFilter) return false;
     if (S.chartIssueFilter && r.issueTag !== S.chartIssueFilter) return false;
     if (cutoff && r.closedDate) {
