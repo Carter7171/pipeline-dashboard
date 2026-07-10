@@ -99,8 +99,9 @@ while (i < raw.length) {
       if (j > i && /^Order\s*#\s*:/i.test(r0)) break;
 
       if (/^Order\s*Totals\s*:/i.test(r0)) {
-        revenue = cellNum(r, 9);
-        cost    = cellNum(r, 10);
+        // Non-billable orders: col 9 = cost absorbed by AFS; nothing billed to builder
+        cost    = cellNum(r, 9);
+        revenue = 0;
         totalsFound = true;
         continue;
       }
@@ -129,6 +130,11 @@ while (i < raw.length) {
         }
       }
     }
+
+    // Only keep non-billable service work — skip chargebacks and billable
+    if (!/^SERVICE WORK NON-BILLABLE$/i.test(serviceOffering)) { i++; continue; }
+    // Skip records with obviously corrupted cost/revenue values
+    if (Math.abs(cost) > 500000 || Math.abs(revenue) > 500000) { i++; continue; }
 
     const closedDate  = parseDate(closedDateStr);
     const orderDate   = parseDate(orderDateStr);
