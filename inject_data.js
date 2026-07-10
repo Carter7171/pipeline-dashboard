@@ -845,10 +845,7 @@ loadMaterialRisk(PRELOADED_MATERIAL_RISK);
 // ──── END AUTO-EMBEDDED MATERIALRISK
 `;
 
-  mrhtml = mrhtml.replace(
-    "document.getElementById('hdr-sub').textContent = 'No data loaded — run inject_data.js';",
-    mrBlock + "\ndocument.getElementById('hdr-sub').textContent = 'No data loaded — run inject_data.js';"
-  );
+  mrhtml = mrhtml.replace('</script>\n</body>\n</html>', mrBlock + '</script>\n</body>\n</html>');
 
   fs.writeFileSync(MAT_RISK_HTML, mrhtml);
   console.log(`Done — updated ${MAT_RISK_HTML}`);
@@ -875,10 +872,7 @@ loadNonBillable(PRELOADED_NONBILLABLE);
 // ──── END AUTO-EMBEDDED NONBILLABLE
 `;
 
-  nbhtml = nbhtml.replace(
-    "document.getElementById('hdr-sub').textContent = 'No data loaded — run process_nonbillable.js then inject_data.js';",
-    nbBlock + "\ndocument.getElementById('hdr-sub').textContent = 'No data loaded — run process_nonbillable.js then inject_data.js';"
-  );
+  nbhtml = nbhtml.replace('</script>\n</body>\n</html>', nbBlock + '</script>\n</body>\n</html>');
 
   fs.writeFileSync(NONBILLABLE_HTML, nbhtml);
   console.log(`Done — updated ${NONBILLABLE_HTML}`);
