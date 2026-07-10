@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Material Risk · AFS Pipeline</title>
+<style>
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;
+  --text:#e6edf3;--muted:#8b949e;--primary:#58a6ff;
+  --success:#3fb950;--warning:#d29922;--danger:#f85149;--purple:#bc8cff;
+  --orange:#f0883e;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:14px;padding:0 22px 40px}
+a{color:var(--primary);text-decoration:none}
+a:hover{text-decoration:underline}
+
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);margin-bottom:18px}
+.hdr-title{font-size:18px;font-weight:700}
+.hdr-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.hdr-nav{display:flex;align-items:center;gap:10px}
+.nav-btn{font-size:13px;color:var(--primary);padding:7px 14px;border:1px solid var(--border);border-radius:6px;background:var(--surface)}
+.nav-btn:hover{background:var(--surface2);text-decoration:none}
+
+.filter-bar{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.filter-label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.filter-chips{display:flex;gap:5px;flex-wrap:wrap}
+.chip{padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--muted);transition:all .15s;user-select:none}
+.chip:hover{color:var(--text)}
+.chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.chip.active.c-danger{background:var(--danger);border-color:var(--danger)}
+.chip.active.c-warn{background:var(--warning);border-color:var(--warning)}
+.fdivider{width:1px;height:18px;background:var(--border)}
+
+.summary-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:1100px){.summary-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.summary-grid{grid-template-columns:repeat(2,1fr)}}
+.sum-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;position:relative;overflow:hidden}
+.sum-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
+.sum-card.s-late::before{background:var(--danger)}
+.sum-card.s-none::before{background:var(--warning)}
+.sum-card.s-crit::before{background:var(--danger)}
+.sum-card.s-warn::before{background:var(--orange)}
+.sum-card.s-total::before{background:var(--muted)}
+.sum-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.sum-val{font-size:22px;font-weight:800;line-height:1.1}
+.sum-sub{font-size:11px;color:var(--muted);margin-top:4px}
+
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:20px}
+.table-toolbar{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.toolbar-info{font-size:12px;color:var(--muted)}
+.btn-sm{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer}
+.btn-sm:hover{border-color:var(--primary)}
+.table-wrap{overflow-x:auto;max-height:70vh}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:var(--surface2);color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0;z-index:5}
+th:hover{color:var(--text)}
+td{padding:8px 12px;border-bottom:1px solid rgba(48,54,61,.5);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.025)}
+.sort-ind{color:var(--primary);margin-left:3px}
+.empty{text-align:center;color:var(--muted);padding:40px 0;font-style:italic}
+
+/* Urgency badges */
+.urg{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800;letter-spacing:.5px;white-space:nowrap}
+.urg-crit{background:rgba(248,81,73,.2);color:var(--danger);border:1px solid rgba(248,81,73,.4)}
+.urg-warn{background:rgba(240,136,62,.15);color:var(--orange);border:1px solid rgba(240,136,62,.3)}
+.urg-watch{background:rgba(210,153,34,.15);color:var(--warning);border:1px solid rgba(210,153,34,.3)}
+.urg-future{background:rgba(139,148,158,.1);color:var(--muted);border:1px solid var(--border)}
+.urg-past{background:rgba(248,81,73,.08);color:#7d3b38;border:1px solid rgba(248,81,73,.2)}
+
+/* Alert type badges */
+.alert-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;margin:2px 0}
+.ab-late{background:rgba(248,81,73,.15);color:var(--danger);border:1px solid rgba(248,81,73,.3)}
+.ab-none{background:rgba(210,153,34,.15);color:var(--warning);border:1px solid rgba(210,153,34,.3)}
+
+/* Alert detail list */
+.alert-list{display:flex;flex-direction:column;gap:3px;margin-top:4px}
+.alert-item{font-size:11px;color:var(--muted);line-height:1.4}
+.alert-item strong{color:var(--text)}
+.eta-warn{color:var(--danger)}
+
+.pager{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
+.pager-btns{display:flex;gap:4px}
+.pg-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 9px;border-radius:4px;font-size:11px;cursor:pointer;min-width:28px}
+.pg-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+.pg-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.pg-btn:disabled{opacity:.3;cursor:not-allowed}
+
+.notes-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:900;align-items:center;justify-content:center}
+.notes-overlay.open{display:flex}
+.notes-modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:min(720px,95vw);max-height:80vh;display:flex;flex-direction:column}
+.notes-modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.notes-modal-hdr h3{font-size:14px;font-weight:700}
+.notes-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
+.notes-close:hover{color:var(--text)}
+.notes-body{overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+.note-card{background:var(--surface2);border-radius:6px;padding:10px 14px}
+.note-meta{font-size:10px;color:var(--muted);margin-bottom:6px;display:flex;gap:10px}
+.note-type{font-weight:700}
+.note-text{font-size:12px;white-space:pre-wrap;word-break:break-word;line-height:1.55}
+.risk-card{background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.25);border-radius:6px;padding:10px 14px;margin-bottom:8px}
+.risk-card-title{font-size:11px;font-weight:700;color:var(--danger);margin-bottom:6px}
+.risk-item{font-size:12px;color:var(--text);padding:3px 0;border-bottom:1px solid rgba(48,54,61,.4)}
+.risk-item:last-child{border-bottom:none}
+</style>
+</head>
+<body>
+
+<div id="pw-gate" style="display:none;position:fixed;inset:0;background:#0d1117;z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div style="color:#e6edf3;font-family:system-ui,sans-serif;font-size:1.5rem;font-weight:700;margin-bottom:4px">AFS Pipeline Dashboard</div>
+  <input id="pw-input" type="password" placeholder="Enter password" autocomplete="current-password"
+    style="padding:10px 16px;border-radius:8px;border:1px solid #30363d;background:#161b22;color:#e6edf3;font-size:1rem;width:260px;outline:none"
+    onkeydown="if(event.key==='Enter')checkPw()">
+  <button onclick="checkPw()"
+    style="padding:10px 28px;border-radius:8px;border:none;background:#1f6feb;color:#fff;font-size:1rem;font-weight:600;cursor:pointer">Unlock</button>
+  <div id="pw-err" style="color:#f85149;font-size:.85rem;min-height:1.2em"></div>
+</div>
+<script>
+(function(){
+  const KEY='afs_dash_auth',PWD='afs2025';
+  if(sessionStorage.getItem(KEY)==='1'){return;}
+  const gate=document.getElementById('pw-gate');
+  gate.style.display='flex';
+  document.body.style.overflow='hidden';
+  window.checkPw=function(){
+    const v=document.getElementById('pw-input').value;
+    if(v===PWD){sessionStorage.setItem(KEY,'1');gate.style.display='none';document.body.style.overflow='';}
+    else{document.getElementById('pw-err').textContent='Incorrect password.';document.getElementById('pw-input').value='';}
+  };
+  setTimeout(()=>document.getElementById('pw-input').focus(),50);
+})();
+</script>
+
+<div class="hdr">
+  <div>
+    <div class="hdr-title">Material Risk Alerts</div>
+    <div class="hdr-sub" id="hdr-sub">No data loaded — run inject_data.js</div>
+  </div>
+  <div class="hdr-nav">
+    <a href="index.html" class="nav-btn">← Pipeline</a>
+    <a href="materials.html" class="nav-btn">Materials →</a>
+    <a href="postfails.html" class="nav-btn">Post Fails →</a>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">Store</span>
+  <div class="filter-chips" id="fc-store"></div>
+  <div class="fdivider"></div>
+  <span class="filter-label">Alert Type</span>
+  <div class="filter-chips">
+    <div class="chip active" data-at="all" onclick="setAlertType(this)">All</div>
+    <div class="chip c-danger" data-at="late" onclick="setAlertType(this)">🚚 Late Delivery</div>
+    <div class="chip c-warn"   data-at="none" onclick="setAlertType(this)">❓ Unconfirmed Bulk</div>
+  </div>
+  <div class="fdivider"></div>
+  <span class="filter-label">Install Window</span>
+  <div class="filter-chips">
+    <div class="chip active" data-win="all" onclick="setWindow(this)">All</div>
+    <div class="chip" data-win="7"   onclick="setWindow(this)">Next 7 Days</div>
+    <div class="chip" data-win="14"  onclick="setWindow(this)">Next 14 Days</div>
+    <div class="chip" data-win="30"  onclick="setWindow(this)">Next 30 Days</div>
+  </div>
+</div>
+
+<div class="summary-grid">
+  <div class="sum-card s-late">
+    <div class="sum-label">Late Delivery Orders</div>
+    <div class="sum-val" id="sum-late">—</div>
+    <div class="sum-sub" id="sum-late-sub">material arriving after install</div>
+  </div>
+  <div class="sum-card s-none">
+    <div class="sum-label">Unconfirmed Bulk Material</div>
+    <div class="sum-val" id="sum-none">—</div>
+    <div class="sum-sub" id="sum-none-sub">NONE status on floor covering</div>
+  </div>
+  <div class="sum-card s-crit">
+    <div class="sum-label">Critical · Install ≤ 3 Days</div>
+    <div class="sum-val" id="sum-crit">—</div>
+    <div class="sum-sub">need immediate action</div>
+  </div>
+  <div class="sum-card s-warn">
+    <div class="sum-label">Warning · Install 4–7 Days</div>
+    <div class="sum-val" id="sum-warn7">—</div>
+    <div class="sum-sub">follow up this week</div>
+  </div>
+  <div class="sum-card s-total">
+    <div class="sum-label">Total At-Risk Orders</div>
+    <div class="sum-val" id="sum-total">—</div>
+    <div class="sum-sub" id="sum-total-sub">across all stores</div>
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="table-toolbar">
+    <div class="toolbar-info" id="detail-info">—</div>
+    <button class="btn-sm" onclick="exportCSV()">Export CSV</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortBy('urgencyRank')">Urgency <span class="sort-ind" id="si-urgencyRank">↑</span></th>
+          <th onclick="sortBy('daysUntilInstall')">Days <span class="sort-ind" id="si-daysUntilInstall"></span></th>
+          <th onclick="sortBy('orderNumber')">Order # <span class="sort-ind" id="si-orderNumber"></span></th>
+          <th onclick="sortBy('customerName')">Customer <span class="sort-ind" id="si-customerName"></span></th>
+          <th onclick="sortBy('store')">Store <span class="sort-ind" id="si-store"></span></th>
+          <th onclick="sortBy('installDate')">Install Date <span class="sort-ind" id="si-installDate"></span></th>
+          <th>Alert Detail</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <tr><td colspan="8" class="empty">No data loaded</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pager">
+    <span id="pager-info">—</span>
+    <div class="pager-btns" id="pager-btns"></div>
+  </div>
+</div>
+
+<div class="notes-overlay" id="notes-overlay" onclick="if(event.target===this)closeNotes()">
+  <div class="notes-modal">
+    <div class="notes-modal-hdr">
+      <h3>Material Risk — <span id="notes-order-num"></span></h3>
+      <button class="notes-close" onclick="closeNotes()">✕</button>
+    </div>
+    <div class="notes-body" id="notes-body"></div>
+  </div>
+</div>
+
+<script>
+const S = {
+  rawData: [], filtered: [],
+  allStores: [], activeStores: new Set(),
+  alertType: 'all',
+  window: 0,
+  sort: { field: 'urgencyRank', dir: 'asc' },
+  page: 1, pageSize: 50,
+};
+
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+
+function fmtDate(s) {
+  if (!s) return '—';
+  const d = new Date(s + 'T12:00:00');
+  if (isNaN(d)) return s;
+  return d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+}
+function escHtml(s) {
+  return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function urgencyRank(days) {
+  if (days === null || days === undefined) return 999;
+  if (days < 0) return 0;          // past — show at very top (already overdue)
+  if (days <= 3) return 1;         // critical
+  if (days <= 7) return 2;         // warning
+  if (days <= 14) return 3;        // watch
+  return 4;                        // future
+}
+function urgencyBadge(days) {
+  if (days === null || days === undefined) return '<span class="urg urg-future">NO DATE</span>';
+  if (days < 0)   return '<span class="urg urg-past">OVERDUE</span>';
+  if (days === 0) return '<span class="urg urg-crit">TODAY</span>';
+  if (days === 1) return '<span class="urg urg-crit">TOMORROW</span>';
+  if (days <= 3)  return '<span class="urg urg-crit">CRITICAL</span>';
+  if (days <= 7)  return '<span class="urg urg-warn">WARNING</span>';
+  if (days <= 14) return '<span class="urg urg-watch">WATCH</span>';
+  return '<span class="urg urg-future">FUTURE</span>';
+}
+function daysLabel(days) {
+  if (days === null || days === undefined) return '—';
+  if (days < 0) return `${Math.abs(days)}d ago`;
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Tomorrow';
+  return `${days}d`;
+}
+
+function loadMaterialRisk(records) {
+  // Pre-compute urgencyRank for each record
+  S.rawData = records.map(r => ({
+    ...r,
+    urgencyRank: urgencyRank(r.daysUntilInstall),
+  }));
+
+  const stores = [...new Set(records.map(r => r.store).filter(Boolean))].sort();
+  S.allStores = stores;
+  S.activeStores = new Set(stores);
+
+  const fc = document.getElementById('fc-store');
+  fc.innerHTML = stores.map(s =>
+    `<div class="chip active" data-store="${s}" onclick="toggleStore(this)">${s}</div>`
+  ).join('');
+
+  const lateCount = records.filter(r => r.hasLateDelivery).length;
+  const noneCount = records.filter(r => r.hasUnconfirmed).length;
+  document.getElementById('hdr-sub').textContent =
+    `${records.length} at-risk orders · ${lateCount} late delivery · ${noneCount} unconfirmed bulk · stores: ${stores.join(', ')} · loaded ${new Date().toLocaleString()}`;
+
+  applyFilters();
+}
+
+function toggleStore(chip) {
+  const s = chip.dataset.store;
+  if (S.activeStores.has(s)) {
+    if (S.activeStores.size === 1) return;
+    S.activeStores.delete(s);
+  } else {
+    S.activeStores.add(s);
+  }
+  chip.classList.toggle('active', S.activeStores.has(s));
+  S.page = 1; applyFilters();
+}
+function setAlertType(chip) {
+  document.querySelectorAll('.filter-bar [data-at]').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  S.alertType = chip.dataset.at;
+  S.page = 1; applyFilters();
+}
+function setWindow(chip) {
+  chip.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  S.window = parseInt(chip.dataset.win) || 0;
+  S.page = 1; applyFilters();
+}
+
+function applyFilters() {
+  let data = S.rawData.filter(r => {
+    if (S.allStores.length && !S.activeStores.has(r.store)) return false;
+    if (S.alertType === 'late' && !r.hasLateDelivery) return false;
+    if (S.alertType === 'none' && !r.hasUnconfirmed) return false;
+    if (S.window > 0) {
+      const d = r.daysUntilInstall;
+      if (d === null || d < 0 || d > S.window) return false;
+    }
+    return true;
+  });
+
+  S.filtered = sortRows(data);
+  updateSummary(data);
+  renderTable();
+}
+
+function updateSummary(data) {
+  const late  = data.filter(r => r.hasLateDelivery).length;
+  const none  = data.filter(r => r.hasUnconfirmed).length;
+  const crit  = data.filter(r => r.daysUntilInstall !== null && r.daysUntilInstall >= 0 && r.daysUntilInstall <= 3).length;
+  const warn7 = data.filter(r => r.daysUntilInstall !== null && r.daysUntilInstall > 3 && r.daysUntilInstall <= 7).length;
+
+  document.getElementById('sum-late').textContent      = late;
+  document.getElementById('sum-late-sub').textContent  = `material arriving after install`;
+  document.getElementById('sum-none').textContent      = none;
+  document.getElementById('sum-none-sub').textContent  = `NONE status on floor covering`;
+  document.getElementById('sum-crit').textContent      = crit;
+  document.getElementById('sum-warn7').textContent     = warn7;
+  document.getElementById('sum-total').textContent     = data.length;
+  document.getElementById('sum-total-sub').textContent = `in filtered view`;
+}
+
+function sortRows(data) {
+  const { field, dir } = S.sort;
+  return [...data].sort((a, b) => {
+    let av = a[field], bv = b[field];
+    if (av === null || av === undefined) av = dir === 'asc' ? Infinity : -Infinity;
+    if (bv === null || bv === undefined) bv = dir === 'asc' ? Infinity : -Infinity;
+    if (typeof av === 'string') av = av.toLowerCase();
+    if (typeof bv === 'string') bv = bv.toLowerCase();
+    if (av < bv) return dir === 'asc' ? -1 : 1;
+    if (av > bv) return dir === 'asc' ? 1 : -1;
+    return 0;
+  });
+}
+
+function sortBy(field) {
+  if (S.sort.field === field) {
+    S.sort.dir = S.sort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    S.sort.field = field;
+    S.sort.dir = 'asc';
+  }
+  document.querySelectorAll('.sort-ind').forEach(el => el.textContent = '');
+  const ind = document.getElementById('si-' + field);
+  if (ind) ind.textContent = S.sort.dir === 'asc' ? '↑' : '↓';
+  S.filtered = sortRows(S.filtered);
+  S.page = 1;
+  renderTable();
+}
+
+function renderTable() {
+  const total = S.filtered.length;
+  const pages = Math.max(1, Math.ceil(total / S.pageSize));
+  S.page = Math.min(S.page, pages);
+  const start = (S.page - 1) * S.pageSize;
+  const slice = S.filtered.slice(start, start + S.pageSize);
+
+  document.getElementById('detail-info').textContent =
+    `${total.toLocaleString()} order${total !== 1 ? 's' : ''} · showing ${start+1}–${Math.min(start+S.pageSize,total)}`;
+
+  const tbody = document.getElementById('table-body');
+  if (!slice.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">No at-risk orders match the current filters</td></tr>`;
+  } else {
+    tbody.innerHTML = slice.map(r => {
+      const days = r.daysUntilInstall;
+
+      // Build alert detail
+      const lateAlerts  = (r.alerts || []).filter(a => a.alertType === 'late_delivery');
+      const noneAlerts  = (r.alerts || []).filter(a => a.alertType === 'unconfirmed_bulk');
+
+      let alertHtml = '';
+      if (lateAlerts.length) {
+        alertHtml += `<span class="alert-badge ab-late">🚚 ${lateAlerts.length} Late Delivery</span>`;
+        alertHtml += `<div class="alert-list">` + lateAlerts.slice(0,2).map(a => {
+          const desc = [a.style, a.color].filter(Boolean).join(' · ');
+          return `<div class="alert-item"><strong>${escHtml(desc)}</strong> (${a.qty||'?'} ${a.um||''}) — <span class="eta-warn">ETA ${a.eta} · ${a.daysLate}d late</span></div>`;
+        }).join('') + (lateAlerts.length > 2 ? `<div class="alert-item">+${lateAlerts.length-2} more…</div>` : '') + `</div>`;
+      }
+      if (noneAlerts.length) {
+        alertHtml += `<span class="alert-badge ab-none" style="margin-top:${lateAlerts.length?'4px':'0'}">❓ ${noneAlerts.length} Unconfirmed</span>`;
+        alertHtml += `<div class="alert-list">` + noneAlerts.slice(0,2).map(a => {
+          const desc = [a.style, a.color].filter(Boolean).join(' · ');
+          return `<div class="alert-item"><strong>${escHtml(desc)}</strong> (${a.qty||'?'} ${a.um||''}) — NONE</div>`;
+        }).join('') + (noneAlerts.length > 2 ? `<div class="alert-item">+${noneAlerts.length-2} more…</div>` : '') + `</div>`;
+      }
+
+      return `<tr ondblclick="showNotes('${escHtml(r.orderNumber)}')">
+        <td>${urgencyBadge(days)}</td>
+        <td style="font-weight:700;color:${days===null?'var(--muted)':days<=3?'var(--danger)':days<=7?'var(--orange)':days<=14?'var(--warning)':'var(--muted)'}">${daysLabel(days)}</td>
+        <td><code style="font-size:11px">${escHtml(r.orderNumber)}</code></td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.customerName)}</td>
+        <td>${escHtml(r.store)}</td>
+        <td style="white-space:nowrap">${fmtDate(r.installDate)}</td>
+        <td style="min-width:260px">${alertHtml}</td>
+        <td><button class="btn-sm" onclick="showNotes('${escHtml(r.orderNumber)}')">Notes</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  renderPager(pages);
+}
+
+function renderPager(pages) {
+  const info = document.getElementById('pager-info');
+  const btns = document.getElementById('pager-btns');
+  info.textContent = `Page ${S.page} of ${pages}`;
+  const arr = [];
+  arr.push(`<button class="pg-btn" onclick="goPage(${S.page-1})" ${S.page<=1?'disabled':''}>‹</button>`);
+  let lo=Math.max(1,S.page-2), hi=Math.min(pages,S.page+2);
+  if (lo>1) arr.push(`<button class="pg-btn" onclick="goPage(1)">1</button>${lo>2?'<span style="color:var(--muted);padding:0 4px">…</span>':''}`);
+  for (let p=lo;p<=hi;p++) arr.push(`<button class="pg-btn${p===S.page?' active':''}" onclick="goPage(${p})">${p}</button>`);
+  if (hi<pages) arr.push(`${hi<pages-1?'<span style="color:var(--muted);padding:0 4px">…</span>':''}<button class="pg-btn" onclick="goPage(${pages})">${pages}</button>`);
+  arr.push(`<button class="pg-btn" onclick="goPage(${S.page+1})" ${S.page>=pages?'disabled':''}>›</button>`);
+  btns.innerHTML = arr.join('');
+}
+function goPage(p) { S.page = p; renderTable(); }
+
+// ─── NOTES MODAL ─────────────────────────────────────────────────────────────
+function showNotes(orderNumber) {
+  const order = S.rawData.find(r => r.orderNumber === orderNumber);
+  if (!order) return;
+  document.getElementById('notes-order-num').textContent = orderNumber;
+  const body = document.getElementById('notes-body');
+
+  // Risk alert summary at top
+  const lateAlerts = (order.alerts||[]).filter(a=>a.alertType==='late_delivery');
+  const noneAlerts = (order.alerts||[]).filter(a=>a.alertType==='unconfirmed_bulk');
+  let riskHtml = '';
+  if (lateAlerts.length) {
+    riskHtml += `<div class="risk-card"><div class="risk-card-title">🚚 Late Delivery — ${lateAlerts.length} item${lateAlerts.length!==1?'s':''}</div>`;
+    riskHtml += lateAlerts.map(a => {
+      const desc = [a.style, a.color].filter(Boolean).join(' · ');
+      return `<div class="risk-item">${escHtml(desc)} &nbsp;·&nbsp; ${a.qty||'?'} ${a.um||''} &nbsp;·&nbsp; <span style="color:var(--danger)">ETA ${a.eta} (${a.daysLate} day${a.daysLate!==1?'s':''} after install)</span></div>`;
+    }).join('');
+    riskHtml += `</div>`;
+  }
+  if (noneAlerts.length) {
+    riskHtml += `<div class="risk-card" style="background:rgba(210,153,34,.06);border-color:rgba(210,153,34,.25)"><div class="risk-card-title" style="color:var(--warning)">❓ Unconfirmed Bulk Material — ${noneAlerts.length} item${noneAlerts.length!==1?'s':''}</div>`;
+    riskHtml += noneAlerts.map(a => {
+      const desc = [a.style, a.color].filter(Boolean).join(' · ');
+      return `<div class="risk-item">${escHtml(desc)} &nbsp;·&nbsp; ${a.qty||'?'} ${a.um||''} &nbsp;·&nbsp; <span style="color:var(--warning)">Status: NONE — not yet confirmed on order</span></div>`;
+    }).join('');
+    riskHtml += `</div>`;
+  }
+
+  // Regular notes
+  const notesHtml = (order.notes || []).map(n => `
+    <div class="note-card">
+      <div class="note-meta">
+        <span class="note-type">${escHtml(n.type||'Note')}</span>
+        <span>${escHtml(n.date||'')}</span>
+      </div>
+      <div class="note-text">${escHtml(n.comment||'')}</div>
+    </div>`).join('');
+
+  body.innerHTML = riskHtml + (notesHtml || `<div style="color:var(--muted);text-align:center;padding:20px">No notes on this order</div>`);
+  document.getElementById('notes-overlay').classList.add('open');
+}
+function closeNotes() { document.getElementById('notes-overlay').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeNotes(); });
+
+// ─── EXPORT CSV ──────────────────────────────────────────────────────────────
+function exportCSV() {
+  const rows = [['Urgency','Days Out','Order #','Customer','Store','Install Date','Late Delivery','Unconfirmed Bulk','Alert Detail']];
+  S.filtered.forEach(r => {
+    const days = r.daysUntilInstall;
+    const urg = days===null?'No Date':days<0?'Overdue':days<=3?'Critical':days<=7?'Warning':days<=14?'Watch':'Future';
+    const lateDetail = (r.alerts||[]).filter(a=>a.alertType==='late_delivery').map(a=>`${a.style}/${a.color} ETA:${a.eta} (${a.daysLate}d late)`).join('; ');
+    const noneDetail = (r.alerts||[]).filter(a=>a.alertType==='unconfirmed_bulk').map(a=>`${a.style}/${a.color} NONE`).join('; ');
+    rows.push([urg, daysLabel(days), r.orderNumber, r.customerName, r.store, r.installDate||'', r.hasLateDelivery?'Yes':'', r.hasUnconfirmed?'Yes':'', lateDetail+noneDetail]);
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'material_risk.csv';
+  a.click();
+}
+</script>
+</body>
+</html>

@@ -210,17 +210,17 @@ while (i < raw.length) {
           // Skip purely empty/decorative lines
           if (itemNo || style) {
             lines.push({
-              lineNo:      r[0],
+              lineNo:          r[0],
               itemNo,
               style,
-              color:       cell(r, 3),
-              qty:         cellNum(r, 5),
-              um:          cell(r, 8),
-              price:       cellNum(r, 9),
-              cost:        cellNum(r, 10),
-              status:      cell(r, 12) || 'None',
-              costStatus:  cell(r, 13),
-              lineInstallDate: cell(r, 14),
+              color:           cell(r, 3),
+              prCode:          cellNum(r, 5),   // product code; 25 = transition
+              qty:             cellNum(r, 6),
+              um:              cell(r, 9),
+              price:           cellNum(r, 10),
+              cost:            cellNum(r, 11),
+              status:          cell(r, 13) || 'None',
+              lineInstallDate: cell(r, 15),
             });
           }
           continue;
@@ -354,12 +354,13 @@ while (i < raw.length) {
         itemNo:        ln.itemNo,
         style:         ln.style,
         color:         ln.color,
+        prCode:        ln.prCode || 0,
         qty:           Math.round(ln.qty   * 100) / 100,
         um:            ln.um,
         price:         Math.round(ln.price * 100) / 100,
         cost:          Math.round(ln.cost  * 100) / 100,
         status:        bucket,
-        rawStatus:     rawStatus,  // keep original for tooltip / detail view
+        rawStatus:     rawStatus,
         lineInstallDate: ln.lineInstallDate,
       });
     }

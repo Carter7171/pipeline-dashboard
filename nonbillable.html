@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Non-Billable Services · AFS Pipeline</title>
+<style>
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;
+  --text:#e6edf3;--muted:#8b949e;--primary:#58a6ff;
+  --success:#3fb950;--warning:#d29922;--danger:#f85149;--purple:#bc8cff;
+  --orange:#f0883e;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:14px;padding:0 22px 40px}
+a{color:var(--primary);text-decoration:none}
+a:hover{text-decoration:underline}
+
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);margin-bottom:18px}
+.hdr-title{font-size:18px;font-weight:700}
+.hdr-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.hdr-nav{display:flex;align-items:center;gap:10px}
+.nav-btn{font-size:13px;color:var(--primary);padding:7px 14px;border:1px solid var(--border);border-radius:6px;background:var(--surface)}
+.nav-btn:hover{background:var(--surface2);text-decoration:none}
+
+.search-bar{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.search-input{flex:1;min-width:280px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:6px;font-size:14px;outline:none}
+.search-input:focus{border-color:var(--primary)}
+.search-hint{font-size:11px;color:var(--muted)}
+
+.filter-bar{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.filter-label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.filter-chips{display:flex;gap:5px;flex-wrap:wrap}
+.chip{padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--muted);transition:all .15s;user-select:none}
+.chip:hover{color:var(--text)}
+.chip.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.fdivider{width:1px;height:18px;background:var(--border)}
+
+.summary-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:1100px){.summary-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.summary-grid{grid-template-columns:repeat(2,1fr)}}
+.sum-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;position:relative;overflow:hidden}
+.sum-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
+.sum-card.s-total::before{background:var(--danger)}
+.sum-card.s-cost::before{background:var(--danger)}
+.sum-card.s-builders::before{background:var(--primary)}
+.sum-card.s-top::before{background:var(--orange)}
+.sum-card.s-avg::before{background:var(--muted)}
+.sum-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.sum-val{font-size:22px;font-weight:800;line-height:1.1}
+.sum-sub{font-size:11px;color:var(--muted);margin-top:4px}
+
+.sec-hdr{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+.sec-title{font-size:14px;font-weight:700}
+.sec-sub{font-size:11px;color:var(--muted);margin-left:6px}
+.sort-pills{display:flex;gap:6px}
+.sort-pill{padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--muted)}
+.sort-pill.active{background:var(--surface);border-color:var(--primary);color:var(--primary)}
+
+.scorecard-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+@media(max-width:1200px){.scorecard-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:800px){.scorecard-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:500px){.scorecard-grid{grid-template-columns:1fr}}
+
+.bld-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;cursor:pointer;transition:border-color .15s}
+.bld-card:hover{border-color:var(--primary)}
+.bld-card.selected{border-color:var(--primary);background:rgba(88,166,255,.06)}
+.bld-name{font-size:13px;font-weight:700;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bld-count{font-size:28px;font-weight:800;line-height:1}
+.bld-count.c-green{color:var(--success)}
+.bld-count.c-yellow{color:var(--warning)}
+.bld-count.c-red{color:var(--danger)}
+.bld-cost{font-size:13px;font-weight:700;color:var(--danger);margin-top:2px}
+.bld-sub{font-size:11px;color:var(--muted);margin-top:2px;margin-bottom:10px}
+.jt-chips{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px}
+.jt-chip{padding:2px 7px;border-radius:8px;font-size:10px;font-weight:600;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.trend-bar{height:6px;border-radius:3px;background:var(--surface2);overflow:hidden;display:flex}
+.trend-seg{height:100%;transition:width .3s}
+
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:20px}
+.table-toolbar{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.toolbar-info{font-size:12px;color:var(--muted)}
+.btn-sm{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer}
+.btn-sm:hover{border-color:var(--primary)}
+.table-wrap{overflow-x:auto;max-height:65vh}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:var(--surface2);color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0;z-index:5}
+th:hover{color:var(--text)}
+td{padding:8px 12px;border-bottom:1px solid rgba(48,54,61,.5);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.025)}
+.sort-ind{color:var(--primary);margin-left:3px}
+.empty{text-align:center;color:var(--muted);padding:40px 0;font-style:italic}
+
+.pager{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
+.pager-btns{display:flex;gap:4px}
+.pg-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 9px;border-radius:4px;font-size:11px;cursor:pointer;min-width:28px}
+.pg-btn:hover:not(:disabled){border-color:var(--primary);color:var(--primary)}
+.pg-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.pg-btn:disabled{opacity:.3;cursor:not-allowed}
+
+.notes-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:900;align-items:center;justify-content:center}
+.notes-overlay.open{display:flex}
+.notes-modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:min(720px,95vw);max-height:80vh;display:flex;flex-direction:column}
+.notes-modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.notes-modal-hdr h3{font-size:14px;font-weight:700}
+.notes-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
+.notes-close:hover{color:var(--text)}
+.notes-body{overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+.note-card{background:var(--surface2);border-radius:6px;padding:10px 14px}
+.note-meta{font-size:10px;color:var(--muted);margin-bottom:6px;display:flex;gap:10px}
+.note-type{font-weight:700}
+.note-text{font-size:12px;white-space:pre-wrap;word-break:break-word;line-height:1.55}
+</style>
+</head>
+<body>
+
+<div id="pw-gate" style="display:none;position:fixed;inset:0;background:#0d1117;z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div style="color:#e6edf3;font-family:system-ui,sans-serif;font-size:1.5rem;font-weight:700;margin-bottom:4px">AFS Pipeline Dashboard</div>
+  <input id="pw-input" type="password" placeholder="Enter password" autocomplete="current-password"
+    style="padding:10px 16px;border-radius:8px;border:1px solid #30363d;background:#161b22;color:#e6edf3;font-size:1rem;width:260px;outline:none"
+    onkeydown="if(event.key==='Enter')checkPw()">
+  <button onclick="checkPw()"
+    style="padding:10px 28px;border-radius:8px;border:none;background:#1f6feb;color:#fff;font-size:1rem;font-weight:600;cursor:pointer">Unlock</button>
+  <div id="pw-err" style="color:#f85149;font-size:.85rem;min-height:1.2em"></div>
+</div>
+<script>
+(function(){
+  const KEY='afs_dash_auth',PWD='afs2025';
+  if(sessionStorage.getItem(KEY)==='1'){return;}
+  const gate=document.getElementById('pw-gate');
+  gate.style.display='flex';
+  document.body.style.overflow='hidden';
+  window.checkPw=function(){
+    const v=document.getElementById('pw-input').value;
+    if(v===PWD){sessionStorage.setItem(KEY,'1');gate.style.display='none';document.body.style.overflow='';}
+    else{document.getElementById('pw-err').textContent='Incorrect password.';document.getElementById('pw-input').value='';}
+  };
+  setTimeout(()=>document.getElementById('pw-input').focus(),50);
+})();
+</script>
+
+<div class="hdr">
+  <div>
+    <div class="hdr-title">Non-Billable Services by Builder</div>
+    <div class="hdr-sub" id="hdr-sub">No data loaded — run process_nonbillable.js then inject_data.js</div>
+  </div>
+  <div class="hdr-nav">
+    <a href="index.html" class="nav-btn">← Pipeline</a>
+    <a href="chargebacks.html" class="nav-btn">Chargebacks →</a>
+  </div>
+</div>
+
+<div class="search-bar">
+  <input id="nb-search" class="search-input" type="text" placeholder="Search builder name or order number..." oninput="applyFilters()">
+  <span class="search-hint">Try: "Pulte", "Fischer", "CG640000"…</span>
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">Store</span>
+  <div class="filter-chips" id="fc-store">
+    <div class="chip active" data-store="all">All</div>
+  </div>
+  <div class="fdivider"></div>
+  <span class="filter-label">Job Type</span>
+  <select id="fc-jobtype" onchange="applyFilters()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;outline:none;cursor:pointer">
+    <option value="">All Types</option>
+  </select>
+  <div class="fdivider"></div>
+  <span class="filter-label">Period</span>
+  <div class="filter-chips">
+    <div class="chip active" data-pd="all"  onclick="setPeriod(this)">All Time</div>
+    <div class="chip" data-pd="30"   onclick="setPeriod(this)">Last 30d</div>
+    <div class="chip" data-pd="90"   onclick="setPeriod(this)">Last 90d</div>
+    <div class="chip" data-pd="180"  onclick="setPeriod(this)">Last 180d</div>
+    <div class="chip" data-pd="365"  onclick="setPeriod(this)">Last Year</div>
+  </div>
+</div>
+
+<div class="summary-grid">
+  <div class="sum-card s-total">
+    <div class="sum-label">Total Service Visits</div>
+    <div class="sum-val" id="sum-total">—</div>
+    <div class="sum-sub" id="sum-total-sub">—</div>
+  </div>
+  <div class="sum-card s-cost">
+    <div class="sum-label">Total Cost Absorbed</div>
+    <div class="sum-val" id="sum-cost">—</div>
+    <div class="sum-sub" id="sum-cost-sub">—</div>
+  </div>
+  <div class="sum-card s-builders">
+    <div class="sum-label">Unique Builders</div>
+    <div class="sum-val" id="sum-builders">—</div>
+    <div class="sum-sub">in filtered view</div>
+  </div>
+  <div class="sum-card s-top">
+    <div class="sum-label">Most Costly Builder</div>
+    <div class="sum-val" id="sum-top" style="font-size:14px;padding-top:4px">—</div>
+    <div class="sum-sub" id="sum-top-sub">—</div>
+  </div>
+  <div class="sum-card s-avg">
+    <div class="sum-label">Avg Cost Per Visit</div>
+    <div class="sum-val" id="sum-avg">—</div>
+    <div class="sum-sub">per service call</div>
+  </div>
+</div>
+
+<div class="sec-hdr">
+  <div>
+    <span class="sec-title">Builder Scorecards</span>
+    <span class="sec-sub" id="scorecard-sub">—</span>
+  </div>
+  <div class="sort-pills">
+    <div class="sort-pill active" data-bsort="cost" onclick="setBldSort(this)">$ Cost</div>
+    <div class="sort-pill" data-bsort="count" onclick="setBldSort(this)"># Visits</div>
+    <div class="sort-pill" data-bsort="alpha" onclick="setBldSort(this)">A–Z</div>
+  </div>
+</div>
+<div class="scorecard-grid" id="scorecard-grid">
+  <div style="color:var(--muted);font-style:italic">No data loaded</div>
+</div>
+
+<div class="table-card">
+  <div class="table-toolbar">
+    <div class="toolbar-info" id="detail-info">—</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="filter-active" style="font-size:11px;color:var(--primary);display:none"></span>
+      <button class="btn-sm" id="clear-bld-btn" onclick="clearBldFilter()" style="display:none">Clear Filter</button>
+      <button class="btn-sm" onclick="exportCSV()">Export CSV</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortBy('orderNumber')">Order # <span class="sort-ind" id="si-orderNumber"></span></th>
+          <th onclick="sortBy('closedDate')">Date <span class="sort-ind" id="si-closedDate">↓</span></th>
+          <th onclick="sortBy('customerName')">Builder <span class="sort-ind" id="si-customerName"></span></th>
+          <th onclick="sortBy('store')">Store <span class="sort-ind" id="si-store"></span></th>
+          <th onclick="sortBy('jobType')">Job Type <span class="sort-ind" id="si-jobType"></span></th>
+          <th onclick="sortBy('revenue')" style="text-align:right">Revenue <span class="sort-ind" id="si-revenue"></span></th>
+          <th onclick="sortBy('cost')" style="text-align:right">Cost <span class="sort-ind" id="si-cost"></span></th>
+          <th onclick="sortBy('grossProfit')" style="text-align:right">Loss <span class="sort-ind" id="si-grossProfit"></span></th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <tr><td colspan="9" class="empty">No data loaded</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pager">
+    <span id="pager-info">—</span>
+    <div class="pager-btns" id="pager-btns"></div>
+  </div>
+</div>
+
+<div class="notes-overlay" id="notes-overlay" onclick="if(event.target===this)closeNotes()">
+  <div class="notes-modal">
+    <div class="notes-modal-hdr">
+      <h3>Notes — <span id="notes-order-num"></span></h3>
+      <button class="notes-close" onclick="closeNotes()">✕</button>
+    </div>
+    <div class="notes-body" id="notes-body"></div>
+  </div>
+</div>
+
+<script>
+// ─── JOB TYPE COLORS ─────────────────────────────────────────────────────────
+const JT_COLORS = {
+  'Carpet':         '#58a6ff',
+  'Tile':           '#bc8cff',
+  'Resilient / LVP':'#3fb950',
+  'Hardwood':       '#f0883e',
+  'Laminate':       '#d29922',
+  'Concrete':       '#8b949e',
+  'Prep':           '#8b949e',
+  'Inspection':     '#d29922',
+  'Multiple':       '#58a6ff',
+  'Specialty':      '#bc8cff',
+  'Other':          '#444c56',
+};
+function jtColor(tag) { return JT_COLORS[tag] || '#444c56'; }
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+const S = {
+  rawData: [],
+  filtered: [],
+  allStores: [],
+  activeStores: new Set(),
+  periodDays: 0,
+  bldFilter: null,
+  bldSort: 'cost',
+  sort: { field: 'closedDate', dir: 'desc' },
+  page: 1, pageSize: 50,
+};
+
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+
+function fmtDollar(n) {
+  if (!n && n!==0) return '—';
+  if (Math.abs(n)>=1e6) return '$'+(n/1e6).toFixed(2)+'M';
+  if (Math.abs(n)>=1e3) return '$'+Math.round(n/1e3).toLocaleString()+'K';
+  return '$'+Math.round(n).toLocaleString();
+}
+function fmtDate(s) {
+  if (!s) return '—';
+  const d = new Date(s+'T12:00:00');
+  if (isNaN(d)) return s;
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+function escHtml(s) {
+  return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ─── LOAD DATA ────────────────────────────────────────────────────────────────
+function loadNonBillable(records) {
+  S.rawData = records;
+  const stores   = [...new Set(records.map(r=>r.store).filter(Boolean))].sort();
+  const jobTypes = [...new Set(records.map(r=>r.jobType).filter(Boolean))].sort();
+
+  S.allStores = stores;
+  S.activeStores = new Set(stores);
+
+  const sc = document.getElementById('fc-store');
+  sc.innerHTML = stores.map(s =>
+    `<div class="chip active" data-store="${s}" onclick="toggleStore(this)">${s}</div>`
+  ).join('');
+
+  const jc = document.getElementById('fc-jobtype');
+  jc.innerHTML = `<option value="">All Types</option>` +
+    jobTypes.map(jt => `<option value="${escHtml(jt)}">${escHtml(jt)}</option>`).join('');
+
+  const dateRange = records.length ? (() => {
+    const dates = records.map(r=>r.closedDate).filter(Boolean).sort();
+    return dates[0] + ' → ' + dates[dates.length-1];
+  })() : '';
+
+  document.getElementById('hdr-sub').textContent =
+    `${records.length.toLocaleString()} service visits · ${stores.join(', ')} · ${dateRange} · loaded ${new Date().toLocaleString()}`;
+
+  applyFilters();
+}
+
+// ─── FILTER CONTROLS ─────────────────────────────────────────────────────────
+function toggleStore(chip) {
+  const s = chip.dataset.store;
+  if (S.activeStores.has(s)) {
+    if (S.activeStores.size === 1) return;
+    S.activeStores.delete(s);
+  } else {
+    S.activeStores.add(s);
+  }
+  chip.classList.toggle('active', S.activeStores.has(s));
+  S.page = 1; applyFilters();
+}
+function setPeriod(chip) {
+  chip.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');
+  S.periodDays = parseInt(chip.dataset.pd) || 0;
+  S.page = 1; applyFilters();
+}
+function setBldSort(pill) {
+  document.querySelectorAll('.sort-pill').forEach(p=>p.classList.remove('active'));
+  pill.classList.add('active');
+  S.bldSort = pill.dataset.bsort;
+  renderScorecards();
+}
+function setBldFilter(name) { S.bldFilter = name; S.page = 1; applyFilters(); }
+function clearBldFilter() {
+  S.bldFilter = null;
+  S.page = 1;
+  document.querySelectorAll('.bld-card').forEach(c=>c.classList.remove('selected'));
+  applyFilters();
+}
+
+// ─── APPLY FILTERS ────────────────────────────────────────────────────────────
+function applyFilters() {
+  const q = (document.getElementById('nb-search').value||'').toLowerCase().trim();
+  const jtSel = document.getElementById('fc-jobtype').value;
+  const cutoff = S.periodDays > 0 ? new Date(TODAY.getTime() - S.periodDays*86400000) : null;
+
+  const data = S.rawData.filter(r => {
+    if (S.allStores.length && !S.activeStores.has(r.store)) return false;
+    if (S.bldFilter && r.customerName !== S.bldFilter) return false;
+    if (jtSel && r.jobType !== jtSel) return false;
+    if (cutoff && r.closedDate) {
+      const d = new Date(r.closedDate+'T12:00:00');
+      if (!isNaN(d) && d < cutoff) return false;
+    }
+    if (q) {
+      const hay = (r.customerName+' '+r.orderNumber+' '+r.jobType+' '+r.notesSummary).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  S.filtered = sortRows(data);
+  updateSummary(data);
+  renderScorecards(data);
+  renderTable();
+
+  const badge = document.getElementById('filter-active');
+  const btn   = document.getElementById('clear-bld-btn');
+  if (S.bldFilter) {
+    badge.textContent = `Builder: ${S.bldFilter}`;
+    badge.style.display = '';
+    btn.style.display = '';
+  } else {
+    badge.style.display = 'none';
+    btn.style.display = 'none';
+  }
+}
+
+// ─── SUMMARY CARDS ────────────────────────────────────────────────────────────
+function updateSummary(data) {
+  const total   = data.length;
+  const cost    = data.reduce((s,r)=>s+(r.cost||0), 0);
+  const revenue = data.reduce((s,r)=>s+(r.revenue||0), 0);
+  const builders = new Set(data.map(r=>r.customerName).filter(Boolean));
+  const avg = total > 0 ? cost/total : 0;
+
+  const byCost = {};
+  data.forEach(r => {
+    const n = r.customerName||'?';
+    byCost[n] = (byCost[n]||0) + (r.cost||0);
+  });
+  const topBld = Object.entries(byCost).sort((a,b)=>b[1]-a[1])[0];
+
+  document.getElementById('sum-total').textContent      = total.toLocaleString();
+  document.getElementById('sum-total-sub').textContent  = `across ${builders.size} builder${builders.size!==1?'s':''}`;
+  document.getElementById('sum-cost').textContent       = fmtDollar(cost);
+  document.getElementById('sum-cost-sub').textContent   = `${fmtDollar(revenue)} billed · ${fmtDollar(cost-revenue)} net loss`;
+  document.getElementById('sum-builders').textContent   = builders.size.toLocaleString();
+  document.getElementById('sum-top').textContent        = topBld ? topBld[0].replace(/ - BACK CHARGE$/i,'') : '—';
+  document.getElementById('sum-top-sub').textContent    = topBld ? fmtDollar(topBld[1]) + ' absorbed' : '';
+  document.getElementById('sum-avg').textContent        = fmtDollar(avg);
+}
+
+// ─── BUILDER SCORECARDS ───────────────────────────────────────────────────────
+const JT_COLORS_LIST = Object.values(JT_COLORS).filter(c=>c!=='#444c56');
+function renderScorecards(data) {
+  data = data || S.filtered;
+  const map = {};
+  data.forEach(r => {
+    const n = r.customerName || 'Unknown';
+    if (!map[n]) map[n] = { count:0, cost:0, jobTypes:{} };
+    map[n].count++;
+    map[n].cost += (r.cost||0);
+    const jt = r.issueTag || 'Other';
+    map[n].jobTypes[jt] = (map[n].jobTypes[jt]||0)+1;
+  });
+
+  let sorted = Object.entries(map);
+  if (S.bldSort === 'cost')  sorted.sort((a,b)=>b[1].cost-a[1].cost);
+  if (S.bldSort === 'count') sorted.sort((a,b)=>b[1].count-a[1].count);
+  if (S.bldSort === 'alpha') sorted.sort((a,b)=>a[0].localeCompare(b[0]));
+
+  document.getElementById('scorecard-sub').textContent = `${sorted.length} builder${sorted.length!==1?'s':''} · click to filter table`;
+
+  if (!sorted.length) {
+    document.getElementById('scorecard-grid').innerHTML = `<div style="color:var(--muted);font-style:italic">No data matches current filters</div>`;
+    return;
+  }
+
+  const maxCost = sorted.length ? sorted[0][1].cost : 1;
+
+  const grid = document.getElementById('scorecard-grid');
+  grid.innerHTML = sorted.map(([name, stats]) => {
+    const countCls = stats.count >= 8 ? 'c-red' : stats.count >= 3 ? 'c-yellow' : 'c-green';
+    const topJTs = Object.entries(stats.jobTypes).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    const jtChips = topJTs.map(([jt,ct]) =>
+      `<span class="jt-chip" style="border-color:${jtColor(jt)};color:${jtColor(jt)}">${escHtml(jt)} (${ct})</span>`
+    ).join('');
+
+    const total = Object.values(stats.jobTypes).reduce((a,b)=>a+b,0);
+    const segs = topJTs.map(([jt,ct],i) => {
+      const w = (ct/total*100).toFixed(1);
+      const col = jtColor(jt) || JT_COLORS_LIST[i % JT_COLORS_LIST.length];
+      return `<div class="trend-seg" style="width:${w}%;background:${col}"></div>`;
+    }).join('');
+
+    const isSelected = S.bldFilter === name;
+
+    return `<div class="bld-card${isSelected?' selected':''}" onclick="selectBuilder(this,'${escHtml(name)}')">
+      <div class="bld-name" title="${escHtml(name)}">${escHtml(name)}</div>
+      <div class="bld-count ${countCls}">${stats.count}</div>
+      <div class="bld-cost">${fmtDollar(stats.cost)} absorbed</div>
+      <div class="bld-sub">${topJTs.length ? topJTs[0][0] : 'various'}</div>
+      <div class="jt-chips">${jtChips}</div>
+      <div class="trend-bar">${segs}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectBuilder(card, name) {
+  if (S.bldFilter === name) {
+    clearBldFilter();
+    return;
+  }
+  document.querySelectorAll('.bld-card').forEach(c=>c.classList.remove('selected'));
+  card.classList.add('selected');
+  setBldFilter(name);
+}
+
+// ─── TABLE ────────────────────────────────────────────────────────────────────
+function sortRows(data) {
+  const { field, dir } = S.sort;
+  return [...data].sort((a,b) => {
+    let av = a[field], bv = b[field];
+    if (av===null||av===undefined) av = dir==='asc'?Infinity:-Infinity;
+    if (bv===null||bv===undefined) bv = dir==='asc'?Infinity:-Infinity;
+    if (typeof av==='string') av=av.toLowerCase();
+    if (typeof bv==='string') bv=bv.toLowerCase();
+    if (av<bv) return dir==='asc'?-1:1;
+    if (av>bv) return dir==='asc'?1:-1;
+    return 0;
+  });
+}
+function sortBy(field) {
+  if (S.sort.field===field) S.sort.dir = S.sort.dir==='asc'?'desc':'asc';
+  else { S.sort.field=field; S.sort.dir=field==='closedDate'?'desc':'asc'; }
+  document.querySelectorAll('.sort-ind').forEach(el=>el.textContent='');
+  const ind = document.getElementById('si-'+field);
+  if (ind) ind.textContent = S.sort.dir==='asc'?'↑':'↓';
+  S.filtered = sortRows(S.filtered);
+  S.page = 1; renderTable();
+}
+
+function renderTable() {
+  const total = S.filtered.length;
+  const pages = Math.max(1, Math.ceil(total / S.pageSize));
+  S.page = Math.min(S.page, pages);
+  const start = (S.page-1)*S.pageSize;
+  const slice = S.filtered.slice(start, start+S.pageSize);
+
+  document.getElementById('detail-info').textContent =
+    `${total.toLocaleString()} record${total!==1?'s':''} · showing ${start+1}–${Math.min(start+S.pageSize,total)}`;
+
+  const tbody = document.getElementById('table-body');
+  if (!slice.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="empty">No records match the current filters</td></tr>`;
+  } else {
+    tbody.innerHTML = slice.map(r => {
+      const loss = (r.cost||0) - (r.revenue||0);
+      const lossColor = loss > 500 ? 'var(--danger)' : loss > 100 ? 'var(--warning)' : 'var(--muted)';
+      return `<tr ondblclick="showNotes('${escHtml(r.orderNumber)}')">
+        <td><code style="font-size:11px">${escHtml(r.orderNumber)}</code></td>
+        <td style="white-space:nowrap">${fmtDate(r.closedDate)}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.customerName)}</td>
+        <td>${escHtml(r.store)}</td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${escHtml(r.jobType)}</td>
+        <td style="text-align:right;color:var(--muted)">${fmtDollar(r.revenue)}</td>
+        <td style="text-align:right;color:var(--danger)">${fmtDollar(r.cost)}</td>
+        <td style="text-align:right;font-weight:700;color:${lossColor}">${fmtDollar(loss)}</td>
+        <td><button class="btn-sm" onclick="showNotes('${escHtml(r.orderNumber)}')">Notes</button></td>
+      </tr>`;
+    }).join('');
+  }
+  renderPager(pages);
+}
+
+function renderPager(pages) {
+  const info = document.getElementById('pager-info');
+  const btns = document.getElementById('pager-btns');
+  info.textContent = `Page ${S.page} of ${pages}`;
+  const arr=[];
+  arr.push(`<button class="pg-btn" onclick="goPage(${S.page-1})" ${S.page<=1?'disabled':''}>‹</button>`);
+  let lo=Math.max(1,S.page-2),hi=Math.min(pages,S.page+2);
+  if(lo>1)arr.push(`<button class="pg-btn" onclick="goPage(1)">1</button>${lo>2?'<span style="color:var(--muted);padding:0 4px">…</span>':''}`);
+  for(let p=lo;p<=hi;p++)arr.push(`<button class="pg-btn${p===S.page?' active':''}" onclick="goPage(${p})">${p}</button>`);
+  if(hi<pages)arr.push(`${hi<pages-1?'<span style="color:var(--muted);padding:0 4px">…</span>':''}<button class="pg-btn" onclick="goPage(${pages})">${pages}</button>`);
+  arr.push(`<button class="pg-btn" onclick="goPage(${S.page+1})" ${S.page>=pages?'disabled':''}>›</button>`);
+  btns.innerHTML=arr.join('');
+}
+function goPage(p) { S.page=p; renderTable(); }
+
+// ─── NOTES MODAL ─────────────────────────────────────────────────────────────
+function showNotes(orderNumber) {
+  const order = S.rawData.find(r => r.orderNumber === orderNumber);
+  if (!order) return;
+  document.getElementById('notes-order-num').textContent = orderNumber + ' — ' + (order.customerName||'');
+  const body = document.getElementById('notes-body');
+  const notesHtml = (order.notes||[]).map(n=>`
+    <div class="note-card">
+      <div class="note-meta">
+        <span class="note-type">${escHtml(n.type||'Note')}</span>
+        <span>${escHtml(n.date||'')}</span>
+      </div>
+      <div class="note-text">${escHtml(n.comment||'')}</div>
+    </div>`).join('');
+  body.innerHTML = notesHtml || `<div style="color:var(--muted);text-align:center;padding:20px">No notes on this order</div>`;
+  document.getElementById('notes-overlay').classList.add('open');
+}
+function closeNotes() { document.getElementById('notes-overlay').classList.remove('open'); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeNotes(); });
+
+// ─── EXPORT CSV ──────────────────────────────────────────────────────────────
+function exportCSV() {
+  const rows = [['Order #','Date','Builder','Store','Job Type','Revenue','Cost','Loss','Notes Summary']];
+  S.filtered.forEach(r => {
+    const loss = (r.cost||0)-(r.revenue||0);
+    rows.push([r.orderNumber, r.closedDate||'', r.customerName, r.store, r.jobType,
+      r.revenue||0, r.cost||0, loss.toFixed(2), (r.notesSummary||'').replace(/,/g,';')]);
+  });
+  const csv = rows.map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='nonbillable.csv'; a.click();
+}
+</script>
+</body>
+</html>

@@ -673,3 +673,220 @@ loadPreInspect(PRELOADED_PREINSPECT);
 } else {
   console.log('Skipping pre-inspect page (preinspect.html not found)');
 }
+
+// ─── MATERIAL RISK PAGE ───────────────────────────────────────────────────────
+const MAT_RISK_HTML = path.join(__dirname, 'material_risk.html');
+if (fs.existsSync(MAT_RISK_HTML) && fs.existsSync(path.join(__dirname, 'materials_data.json'))) {
+
+  const TODAY_ISO = new Date().toISOString().split('T')[0];
+
+  // Parse "On Order M/D/YYYY" from rawStatus → return "YYYY-MM-DD" or null
+  function parseETA(rawStatus) {
+    if (!rawStatus) return null;
+    const m = rawStatus.match(/on\s*order\s+(\d{1,2})\/(\d{1,2})\/(\d{4})/i);
+    if (!m) return null;
+    return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+  }
+
+  // True for bulk floor-covering materials only (not accessories)
+  function isBulkMaterial(ln) {
+    // prCode 25 = transitions — always exclude
+    if ((ln.prCode || 0) === 25) return false;
+    // UM-based primary signal: SF (square feet) or SY (square yards)
+    const um = (ln.um || '').trim().toUpperCase();
+    const isBulkUM = um === 'SF' || um === 'SY';
+    // Keyword exclusion list (accessories)
+    const desc = ((ln.style || '') + ' ' + (ln.color || '')).toLowerCase();
+    const excluded = /transition|adhesive|grout|mortar|caulk|base\s+mold|base\b|trim|tack\s*strip|threshold|reducer/i.test(desc);
+    if (excluded) return false;
+    if (isBulkUM) return true;
+    // Secondary: keyword match on material type when UM is not SF/SY
+    return /\blvp\b|luxury\s*vinyl|carpet|vinyl\s*plank|laminate|\btile\b|hardwood|ceramic|porcelain/i.test(desc);
+  }
+
+  function daysBetween(fromISO, toISO) {
+    if (!fromISO || !toISO) return null;
+    const a = new Date(fromISO + 'T00:00:00');
+    const b = new Date(toISO  + 'T00:00:00');
+    if (isNaN(a) || isNaN(b)) return null;
+    return Math.round((b - a) / 86400000);
+  }
+
+  const matData = JSON.parse(fs.readFileSync(path.join(__dirname, 'materials_data.json'), 'utf8')).data || [];
+
+  // Group lines by orderNumber; also pull installDate (use lineInstallDate, fallback to line's order header)
+  const orderMap = {};
+  matData.forEach(ln => {
+    const on = ln.orderNumber;
+    if (!on) return;
+    if (!orderMap[on]) {
+      orderMap[on] = {
+        orderNumber:  on,
+        customerName: ln.customerName || '',
+        store:        ln.store || '',
+        installDate:  null,
+        lines: [],
+      };
+    }
+    orderMap[on].lines.push(ln);
+    // Pick most common non-inspection lineInstallDate as the order install date
+    const ld = ln.lineInstallDate;
+    if (ld && !/inspect/i.test(ln.style || '')) {
+      if (!orderMap[on].installDate) orderMap[on].installDate = ld;
+    }
+  });
+
+  const riskRecords = [];
+
+  for (const on of Object.keys(orderMap)) {
+    const order = orderMap[on];
+    // Normalize installDate to ISO
+    let installISO = null;
+    if (order.installDate) {
+      const raw = String(order.installDate).trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(raw)) installISO = raw.slice(0,10);
+      else {
+        const mm = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+        if (mm) {
+          const yr = mm[3].length === 2 ? '20'+mm[3] : mm[3];
+          installISO = `${yr}-${mm[1].padStart(2,'0')}-${mm[2].padStart(2,'0')}`;
+        }
+      }
+    }
+
+    const alerts = [];
+
+    for (const ln of order.lines) {
+      const status = (ln.status || '').trim();
+      const rawStatus = (ln.rawStatus || ln.status || '').trim();
+
+      // ── Late Delivery alert ───────────────────────────────────────────────
+      if (/^on\s*order/i.test(status) || /^on\s*order/i.test(rawStatus)) {
+        const eta = parseETA(rawStatus) || parseETA(status);
+        if (eta && installISO) {
+          const daysLate = daysBetween(installISO, eta); // positive = ETA after install
+          if (daysLate !== null && daysLate > 0) {
+            alerts.push({
+              alertType: 'late_delivery',
+              style:     ln.style || '',
+              color:     ln.color || '',
+              qty:       ln.qty   || '',
+              um:        ln.um    || '',
+              eta,
+              daysLate,
+            });
+          }
+        }
+      }
+
+      // ── Unconfirmed Bulk alert ─────────────────────────────────────────────
+      if (/^none$/i.test(status) && isBulkMaterial(ln)) {
+        alerts.push({
+          alertType: 'unconfirmed_bulk',
+          style:     ln.style || '',
+          color:     ln.color || '',
+          qty:       ln.qty   || '',
+          um:        ln.um    || '',
+        });
+      }
+    }
+
+    if (!alerts.length) continue;
+
+    const daysUntilInstall = installISO ? daysBetween(TODAY_ISO, installISO) : null;
+    const hasLateDelivery  = alerts.some(a => a.alertType === 'late_delivery');
+    const hasUnconfirmed   = alerts.some(a => a.alertType === 'unconfirmed_bulk');
+
+    // Pull notes from the matching open order (if available)
+    const openOrder = records.find(r => r.orderNumber === on);
+
+    riskRecords.push({
+      orderNumber:      on,
+      customerName:     order.customerName,
+      store:            order.store,
+      installDate:      installISO,
+      daysUntilInstall,
+      hasLateDelivery,
+      hasUnconfirmed,
+      alerts,
+      notes: openOrder ? (openOrder.notes || []) : [],
+    });
+  }
+
+  // Sort by urgencyRank then daysUntilInstall
+  riskRecords.sort((a, b) => {
+    function rank(r) {
+      const d = r.daysUntilInstall;
+      if (d === null) return 999;
+      if (d < 0) return 0;
+      if (d <= 3) return 1;
+      if (d <= 7) return 2;
+      if (d <= 14) return 3;
+      return 4;
+    }
+    const ra = rank(a), rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    const da = a.daysUntilInstall ?? 999, db = b.daysUntilInstall ?? 999;
+    return da - db;
+  });
+
+  const lateCount = riskRecords.filter(r => r.hasLateDelivery).length;
+  const noneCount = riskRecords.filter(r => r.hasUnconfirmed).length;
+  console.log(`\nEmbedding ${riskRecords.length} material risk orders into material_risk page...`);
+  console.log(`  Late delivery: ${lateCount}  Unconfirmed bulk: ${noneCount}`);
+
+  let mrhtml = fs.readFileSync(MAT_RISK_HTML, 'utf8');
+  mrhtml = mrhtml.replace(/\/\/ ──── AUTO-EMBEDDED MATERIALRISK[\s\S]*?\/\/ ──── END AUTO-EMBEDDED MATERIALRISK\n?/g, '');
+
+  const mrBlock = `
+// ──── AUTO-EMBEDDED MATERIALRISK (generated ${new Date().toISOString().slice(0,10)}) ────
+const PRELOADED_MATERIAL_RISK = ${JSON.stringify(riskRecords)};
+loadMaterialRisk(PRELOADED_MATERIAL_RISK);
+// ──── END AUTO-EMBEDDED MATERIALRISK
+`;
+
+  mrhtml = mrhtml.replace(
+    "document.getElementById('hdr-sub').textContent = 'No data loaded — run inject_data.js';",
+    mrBlock + "\ndocument.getElementById('hdr-sub').textContent = 'No data loaded — run inject_data.js';"
+  );
+
+  fs.writeFileSync(MAT_RISK_HTML, mrhtml);
+  console.log(`Done — updated ${MAT_RISK_HTML}`);
+  console.log(`File size: ${(fs.statSync(MAT_RISK_HTML).size / 1024).toFixed(0)} KB`);
+} else {
+  console.log('Skipping material risk page (material_risk.html or materials_data.json not found)');
+}
+
+// ─── NON-BILLABLE PAGE ────────────────────────────────────────────────────────
+const NONBILLABLE_DATA = path.join(__dirname, 'nonbillable_data.json');
+const NONBILLABLE_HTML = path.join(__dirname, 'nonbillable.html');
+if (fs.existsSync(NONBILLABLE_DATA) && fs.existsSync(NONBILLABLE_HTML)) {
+  const nbRaw = JSON.parse(fs.readFileSync(NONBILLABLE_DATA, 'utf8'));
+  const nbRecords = nbRaw.data || [];
+  console.log(`\nEmbedding ${nbRecords.length} non-billable records into nonbillable page...`);
+
+  let nbhtml = fs.readFileSync(NONBILLABLE_HTML, 'utf8');
+  nbhtml = nbhtml.replace(/\/\/ ──── AUTO-EMBEDDED NONBILLABLE[\s\S]*?\/\/ ──── END AUTO-EMBEDDED NONBILLABLE\n?/g, '');
+
+  const nbBlock = `
+// ──── AUTO-EMBEDDED NONBILLABLE (generated ${new Date().toISOString().slice(0,10)}) ────
+const PRELOADED_NONBILLABLE = ${JSON.stringify(nbRecords)};
+loadNonBillable(PRELOADED_NONBILLABLE);
+// ──── END AUTO-EMBEDDED NONBILLABLE
+`;
+
+  nbhtml = nbhtml.replace(
+    "document.getElementById('hdr-sub').textContent = 'No data loaded — run process_nonbillable.js then inject_data.js';",
+    nbBlock + "\ndocument.getElementById('hdr-sub').textContent = 'No data loaded — run process_nonbillable.js then inject_data.js';"
+  );
+
+  fs.writeFileSync(NONBILLABLE_HTML, nbhtml);
+  console.log(`Done — updated ${NONBILLABLE_HTML}`);
+  console.log(`File size: ${(fs.statSync(NONBILLABLE_HTML).size / 1024).toFixed(0)} KB`);
+} else {
+  if (!fs.existsSync(NONBILLABLE_DATA)) {
+    console.log('Skipping nonbillable page (nonbillable_data.json not found — pull report and run process_nonbillable.js first)');
+  } else {
+    console.log('Skipping nonbillable page (nonbillable.html not found)');
+  }
+}
