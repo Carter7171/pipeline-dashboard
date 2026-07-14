@@ -85,8 +85,8 @@ loadPreprocessedData(PRELOADED_DATA);
 // ──── END AUTO-EMBEDDED DATA
 `;
 
-// Inject just before closing </script>
-html = html.replace('</script>\n</body>\n</html>', loadFn + '</script>\n</body>\n</html>');
+// Inject before INJECT_END marker (added by patch_sidebar.js)
+html = html.replace('// ── INJECT_END ──\n', loadFn + '// ── INJECT_END ──\n');
 
 fs.writeFileSync(HTML_FILE, html);
 console.log(`Done — updated ${HTML_FILE}`);
@@ -111,7 +111,7 @@ loadLines(PRELOADED_MATERIALS);
 // ──── END AUTO-EMBEDDED MATERIALS
 `;
 
-  mhtml = mhtml.replace('</script>\n\n</body>', matBlock + '</script>\n\n</body>');
+  mhtml = mhtml.replace('// ── INJECT_END ──\n', matBlock + '// ── INJECT_END ──\n');
 
   fs.writeFileSync(MATERIALS_HTML, mhtml);
   console.log(`Done — updated ${MATERIALS_HTML}`);
@@ -845,7 +845,7 @@ loadMaterialRisk(PRELOADED_MATERIAL_RISK);
 // ──── END AUTO-EMBEDDED MATERIALRISK
 `;
 
-  mrhtml = mrhtml.replace('</script>\n</body>\n</html>', mrBlock + '</script>\n</body>\n</html>');
+  mrhtml = mrhtml.replace('// ── INJECT_END ──\n', mrBlock + '// ── INJECT_END ──\n');
 
   fs.writeFileSync(MAT_RISK_HTML, mrhtml);
   console.log(`Done — updated ${MAT_RISK_HTML}`);
@@ -872,7 +872,7 @@ loadNonBillable(PRELOADED_NONBILLABLE);
 // ──── END AUTO-EMBEDDED NONBILLABLE
 `;
 
-  nbhtml = nbhtml.replace('</script>\n</body>\n</html>', nbBlock + '</script>\n</body>\n</html>');
+  nbhtml = nbhtml.replace('// ── INJECT_END ──\n', nbBlock + '// ── INJECT_END ──\n');
 
   fs.writeFileSync(NONBILLABLE_HTML, nbhtml);
   console.log(`Done — updated ${NONBILLABLE_HTML}`);
