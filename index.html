@@ -2009,7 +2009,7 @@ document.addEventListener('DOMContentLoaded', function() {
       {
         sel: '#ms-jobtype-btn',
         title: 'Job Type Filter',
-        body: 'Click to open the job type selector. Check or uncheck types to narrow the view. Use "Select All" and "Clear All" for quick changes.',
+        body: 'Click to open the job type selector. Check or uncheck types to narrow the view. Use “Select All” and “Clear All” for quick changes.',
         fallback: '.filter-bar',
       },
       {
@@ -2027,13 +2027,25 @@ document.addEventListener('DOMContentLoaded', function() {
       {
         sel: '#table-body tr:first-child',
         title: 'Double-Click Any Row for Notes',
-        body: 'Double-click any CG number row to open a side panel with all notes logged in Constellation for that job — inspection history, status changes, installer comments, and more.',
+        body: 'Double-click any row in the table to open that job\'s notes panel. The panel slides in from the right.',
         fallback: '#table-body, .table-wrap',
+      },
+      {
+        sel: '.notes-overlay',
+        title: 'Notes Panel',
+        body: 'The notes panel shows every Constellation entry for that job — inspector comments, status history, work order details, and timestamps. Scroll through the full activity log without leaving the dashboard. Click anywhere outside or press ✕ to close.',
+        fallback: '#table-body tr:first-child',
+      },
+      {
+        sel: '.chip.active.warn-chip, .kpi.k-warn, tr.row-mismatch',
+        title: 'Yellow / Amber Highlights',
+        body: 'Yellow always means a warning:\n• Yellow period tab — this projection bucket has jobs at risk\n• Yellow KPI card — revenue/GP totals for those at-risk jobs\n• Yellow row — install date on the order header doesn\'t match the line-item date (usually a reschedule updated in only one place)',
+        fallback: '.kpi, #table-body',
       },
       {
         sel: '.done-cb',
         title: 'Completion Checkboxes',
-        body: 'Check off a job to mark it done for your team. Status syncs in real time to Firestore — everyone on the team sees the same checked rows.',
+        body: 'Checking this box marks the job as closed/delivered for your team. The row dims and is excluded from the active count — KPI totals update immediately. The checked state syncs to Firestore so everyone on the team sees the same view.',
         fallback: '#table-body tr:first-child',
       },
       {
@@ -2211,6 +2223,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var steps = [], stepIdx = 0;
   var spotEl, tipEl;
   var active = false;
+  var showTimeout = null;
 
   function findEl(sel) {
     if (!sel) return null;
@@ -2274,7 +2287,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 
-    setTimeout(function () {
+    if (showTimeout) clearTimeout(showTimeout);
+    showTimeout = setTimeout(function () {
+      showTimeout = null;
+      if (!active) return;
       positionSpot(el);
       positionTip(el);
 
@@ -2303,6 +2319,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function endTour() {
     active = false;
+    if (showTimeout) { clearTimeout(showTimeout); showTimeout = null; }
     spotEl.style.display = 'none';
     tipEl.style.display  = 'none';
   }

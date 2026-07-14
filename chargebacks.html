@@ -1202,6 +1202,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var steps = [], stepIdx = 0;
   var spotEl, tipEl;
   var active = false;
+  var showTimeout = null;
 
   function findEl(sel) {
     if (!sel) return null;
@@ -1265,7 +1266,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 
-    setTimeout(function () {
+    if (showTimeout) clearTimeout(showTimeout);
+    showTimeout = setTimeout(function () {
+      showTimeout = null;
+      if (!active) return;
       positionSpot(el);
       positionTip(el);
 
@@ -1294,6 +1298,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function endTour() {
     active = false;
+    if (showTimeout) { clearTimeout(showTimeout); showTimeout = null; }
     spotEl.style.display = 'none';
     tipEl.style.display  = 'none';
   }
