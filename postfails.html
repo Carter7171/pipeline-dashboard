@@ -1007,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!el && step.fallback) el = findEl(step.fallback);
     if (!el) el = document.querySelector('.hdr') || document.body;
 
-    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    el.scrollIntoView({ block: 'center' });
 
     if (showTimeout) clearTimeout(showTimeout);
     showTimeout = setTimeout(function () {

@@ -2026,15 +2026,9 @@ document.addEventListener('DOMContentLoaded', function() {
       },
       {
         sel: '#table-body tr:first-child',
-        title: 'Double-Click Any Row for Notes',
-        body: 'Double-click any row in the table to open that job\'s notes panel. The panel slides in from the right.',
+        title: 'Notes Panel — Double-Click Any Row',
+        body: 'Double-click any row to open the notes panel for that job. It pulls every Constellation entry — inspector comments, status history, work order details, and timestamps. Scroll through the full activity log without leaving the dashboard. Click outside or press ✕ to close.',
         fallback: '#table-body, .table-wrap',
-      },
-      {
-        sel: '.notes-overlay',
-        title: 'Notes Panel',
-        body: 'The notes panel shows every Constellation entry for that job — inspector comments, status history, work order details, and timestamps. Scroll through the full activity log without leaving the dashboard. Click anywhere outside or press ✕ to close.',
-        fallback: '#table-body tr:first-child',
       },
       {
         sel: '.chip.active.warn-chip, .kpi.k-warn, tr.row-mismatch',
@@ -2285,7 +2279,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!el && step.fallback) el = findEl(step.fallback);
     if (!el) el = document.querySelector('.hdr') || document.body;
 
-    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    el.scrollIntoView({ block: 'center' });
 
     if (showTimeout) clearTimeout(showTimeout);
     showTimeout = setTimeout(function () {
