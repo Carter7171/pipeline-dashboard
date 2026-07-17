@@ -884,3 +884,37 @@ loadNonBillable(PRELOADED_NONBILLABLE);
     console.log('Skipping nonbillable page (nonbillable.html not found)');
   }
 }
+
+// ── Fix tour split('\n') syntax ──────────────────────────────────────────────
+// The update_tour.js script wrote a literal LF inside the JS string literal
+// step.body.split('\n'). Every inject re-writes the HTML files so we fix it here
+// automatically after every inject run.
+(function fixTourSplit() {
+  const BS = String.fromCharCode(92); // literal backslash — avoids heredoc escape issues
+  const pages = [
+    HTML_FILE,
+    path.join(__dirname, 'materials.html'),
+    path.join(__dirname, 'chargebacks.html'),
+    path.join(__dirname, 'postfails.html'),
+    path.join(__dirname, 'preinspect.html'),
+    path.join(__dirname, 'material_risk.html'),
+    path.join(__dirname, 'nonbillable.html'),
+  ];
+  let fixed = 0;
+  pages.forEach(function(fp) {
+    if (!fs.existsSync(fp)) return;
+    let content = fs.readFileSync(fp, 'utf8');
+    const tourStart = content.indexOf('/* tour.js');
+    if (tourStart === -1) return;
+    const tour = content.slice(tourStart);
+    const idx  = tour.indexOf('var lines = step.body.split(');
+    if (idx === -1) return;
+    const argPos  = tourStart + idx + 29; // char right after split('
+    if (content.charCodeAt(argPos) === 10) { // LF = broken
+      content = content.slice(0, argPos) + BS + 'n' + content.slice(argPos + 1);
+      fs.writeFileSync(fp, content, 'utf8');
+      fixed++;
+    }
+  });
+  if (fixed > 0) console.log('Tour split fix applied to ' + fixed + ' file(s).');
+})();
