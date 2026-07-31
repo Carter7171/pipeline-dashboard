@@ -4,7 +4,7 @@ const XLSX = require('./node_modules/xlsx');
 const fs   = require('fs');
 const path = require('path');
 
-const INPUT  = process.argv[2] || path.join(__dirname, 'OpenOrdersDetailed20260728023622.xlsx');
+const INPUT  = process.argv[2] || path.join(__dirname, 'OpenOrdersDetailed20260731065014.xlsx');
 const OUTPUT = path.join(__dirname, 'report_data.json');
 
 const TODAY           = new Date(); TODAY.setHours(0,0,0,0);
