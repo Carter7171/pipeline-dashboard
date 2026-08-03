@@ -432,8 +432,8 @@ if (fs.existsSync(PREINSPECT_HTML)) {
     const matData = JSON.parse(fs.readFileSync(path.join(__dirname, 'materials_data.json'), 'utf8')).data || [];
     matData.forEach(ln => {
       if (!ln.lineInstallDate || !ln.orderNumber) return;
-      // Exclude inspection lines
-      if (/inspect|pre.?insp|slab.?insp|slab\s*insp/i.test(ln.style || '')) return;
+      // Exclude inspection lines (itemNo contains the line type, not style)
+      if (/inspect/i.test(ln.itemNo || '')) return;
       const isoDate = toISO(ln.lineInstallDate);
       if (!isoDate) return;
       if (!linesByOrder[ln.orderNumber]) linesByOrder[ln.orderNumber] = {};
@@ -447,7 +447,7 @@ if (fs.existsSync(PREINSPECT_HTML)) {
     const matData = JSON.parse(fs.readFileSync(path.join(__dirname, 'materials_data.json'), 'utf8')).data || [];
     matData.forEach(ln => {
       if (!ln.lineInstallDate || !ln.orderNumber) return;
-      if (!/inspect|pre.?insp|slab.?insp/i.test(ln.style || '')) return;
+      if (!/^pre\s+inspection|^pre\s*insp|slab.*insp/i.test(ln.itemNo || '')) return;
       const isoDate = toISO(ln.lineInstallDate);
       if (!isoDate) return;
       if (!inspLinesByOrder[ln.orderNumber]) inspLinesByOrder[ln.orderNumber] = [];
