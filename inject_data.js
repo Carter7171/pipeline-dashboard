@@ -2,6 +2,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const XLSX = require('./node_modules/xlsx/xlsx.js');
 
 const REFRESH_TS = new Date().toLocaleString('en-US', {
   month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'
@@ -688,6 +689,7 @@ if (fs.existsSync(PREINSPECT_HTML)) {
       headerInstallDate: headerDate,
       currentStatus:   order.currentStatus || '',
       revenue:         order.revenue || 0,
+      notes:           order.notes || [],
     };
     if (trueDate === D1_ISO) clearanceD1.push(rec);
     else if (trueDate === D2_ISO) clearanceD2.push(rec);
@@ -696,6 +698,41 @@ if (fs.existsSync(PREINSPECT_HTML)) {
   console.log(`  Going out in 2 days no-clearance (005): ${clearanceD2.length}`);
 
   console.log(`\nEmbedding ${preinspectRecords.length} pre-inspection records into pre-inspect page...`);
+
+  // ── Load superintendent contacts from Builder Accounts spreadsheet ───────
+  let superContacts = [];
+  const SUPER_XL = path.join(__dirname, '..', 'Projects', 'Pre Inspection Communication',
+    'Pre Inspection Communication', 'Builder Accounts - April 2026.xlsx');
+  if (fs.existsSync(SUPER_XL)) {
+    try {
+      const wb = XLSX.readFile(SUPER_XL);
+      const sheet = wb.Sheets['Superintendent Contacts'];
+      if (sheet) {
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        let currentBuilder = '';
+        for (const row of rows) {
+          if (!row || row.length < 2) continue;
+          if (row[0] && typeof row[0] === 'string' && row[0].trim())
+            currentBuilder = row[0].trim().toUpperCase();
+          // Email may be in col 3 or col 4 depending on sheet layout
+          const email = [row[3], row[4]].map(v => String(v || '')).find(v => v.includes('@')) || '';
+          if (row[1] && email) {
+            superContacts.push({
+              builder:      currentBuilder,
+              name:         String(row[1]).trim(),
+              neighborhood: row[2] ? String(row[2]).trim() : '',
+              email:        email.trim(),
+            });
+          }
+        }
+      }
+      console.log(`  Loaded ${superContacts.length} superintendent contacts`);
+    } catch(e) {
+      console.warn('  Could not load superintendent contacts:', e.message);
+    }
+  } else {
+    console.warn('  Superintendent contacts file not found — email lookup will be empty');
+  }
 
   let pihtml = fs.readFileSync(PREINSPECT_HTML, 'utf8');
   pihtml = pihtml.replace(/\/\/ ──── AUTO-EMBEDDED PREINSPECT[\s\S]*?\/\/ ──── END AUTO-EMBEDDED PREINSPECT\n?/g, '');
@@ -706,6 +743,7 @@ const PRELOADED_PREINSPECT = ${JSON.stringify(preinspectRecords)};
 const PRELOADED_TODAY_PI   = ${JSON.stringify(todayPreinspect)};
 const PRELOADED_CLEARANCE_D1 = ${JSON.stringify(clearanceD1)};
 const PRELOADED_CLEARANCE_D2 = ${JSON.stringify(clearanceD2)};
+const SUPER_CONTACTS = ${JSON.stringify(superContacts)};
 const DATA_REFRESH_TS = '${REFRESH_TS}';
 loadPreInspect(PRELOADED_PREINSPECT, PRELOADED_TODAY_PI, PRELOADED_CLEARANCE_D1, PRELOADED_CLEARANCE_D2);
 // ──── END AUTO-EMBEDDED PREINSPECT
