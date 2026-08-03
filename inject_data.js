@@ -3,6 +3,10 @@
 const fs   = require('fs');
 const path = require('path');
 
+const REFRESH_TS = new Date().toLocaleString('en-US', {
+  month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'
+});
+
 const DATA_FILE = path.join(__dirname, 'report_data.json');
 const HTML_FILE = path.join(__dirname, 'index.html');
 
@@ -621,6 +625,76 @@ if (fs.existsSync(PREINSPECT_HTML)) {
     return a.daysOut - b.daysOut;
   });
 
+  // ── Today's Pre-Inspections (store 005 only) ──────────────────────────────
+  // Jobs where an inspection line is scheduled for today, regardless of 5-day window
+  const todayISO = new Date(); todayISO.setHours(0,0,0,0);
+  const TODAY_PI_ISO = todayISO.toISOString().slice(0,10);
+
+  const todayPreinspect = [];
+  for (const order of records) {
+    if ((order.store || '') !== '005') continue;
+    if (!VALID_CT.has(order.customerType || '')) continue;
+    const inspDates = inspLinesByOrder[order.orderNumber];
+    if (!inspDates || !inspDates.includes(TODAY_PI_ISO)) continue;
+    const headerDate = order.scheduledInstallDate ? String(order.scheduledInstallDate).slice(0,10) : null;
+    const trueDate   = getTrueInstallDate(order.orderNumber, headerDate);
+    todayPreinspect.push({
+      orderNumber:     order.orderNumber || '',
+      customerName:    order.customerName || '',
+      store:           order.store || '',
+      jobType:         order.jobType || '',
+      jobNumber:       order.jobNumber || '',
+      lot:             order.lot || '',
+      tract:           order.tract || '',
+      trueInstallDate: trueDate,
+      headerInstallDate: headerDate,
+      currentStatus:   order.currentStatus || '',
+      notes:           order.notes || [],
+    });
+  }
+  console.log(`  Today pre-inspections (005): ${todayPreinspect.length}`);
+
+  // ── Going Out Tomorrow / 2 Days — no clearance (store 005 only) ───────────
+  const d1Obj = new Date(todayISO); d1Obj.setDate(d1Obj.getDate() + 1);
+  const d2Obj = new Date(todayISO); d2Obj.setDate(d2Obj.getDate() + 2);
+  const D1_ISO = d1Obj.toISOString().slice(0,10);
+  const D2_ISO = d2Obj.toISOString().slice(0,10);
+
+  const CLEARANCE_RE = /install.?ready|pre.?complet|pre\s*pass|pre\s*ready|pre\s*passed|ready\s+to\s+go/i;
+  function hasClearanceNote(notes) {
+    return (notes || []).some(n =>
+      CLEARANCE_RE.test(n.comment || '') || CLEARANCE_RE.test(n.type || '')
+    );
+  }
+
+  const clearanceD1 = [], clearanceD2 = [];
+  for (const order of records) {
+    if ((order.store || '') !== '005') continue;
+    if (!VALID_CT.has(order.customerType || '')) continue;
+    if (!VALID_SO.test(order.serviceOffering || '')) continue;
+    if (hasClearanceNote(order.notes)) continue;
+    const headerDate = order.scheduledInstallDate ? String(order.scheduledInstallDate).slice(0,10) : null;
+    const trueDate   = getTrueInstallDate(order.orderNumber, headerDate);
+    if (!trueDate) continue;
+    const rec = {
+      orderNumber:     order.orderNumber || '',
+      customerName:    order.customerName || '',
+      store:           order.store || '',
+      jobType:         order.jobType || '',
+      jobNumber:       order.jobNumber || '',
+      lot:             order.lot || '',
+      tract:           order.tract || '',
+      trueInstallDate: trueDate,
+      headerInstallDate: headerDate,
+      currentStatus:   order.currentStatus || '',
+      revenue:         order.revenue || 0,
+    };
+    if (trueDate === D1_ISO) clearanceD1.push(rec);
+    else if (trueDate === D2_ISO) clearanceD2.push(rec);
+  }
+  console.log(`  Going out tomorrow no-clearance (005): ${clearanceD1.length}`);
+  console.log(`  Going out in 2 days no-clearance (005): ${clearanceD2.length}`);
+
   console.log(`\nEmbedding ${preinspectRecords.length} pre-inspection records into pre-inspect page...`);
 
   let pihtml = fs.readFileSync(PREINSPECT_HTML, 'utf8');
@@ -629,7 +703,11 @@ if (fs.existsSync(PREINSPECT_HTML)) {
   const piBlock = `
 // ──── AUTO-EMBEDDED PREINSPECT (generated ${new Date().toISOString().slice(0,10)}) ────
 const PRELOADED_PREINSPECT = ${JSON.stringify(preinspectRecords)};
-loadPreInspect(PRELOADED_PREINSPECT);
+const PRELOADED_TODAY_PI   = ${JSON.stringify(todayPreinspect)};
+const PRELOADED_CLEARANCE_D1 = ${JSON.stringify(clearanceD1)};
+const PRELOADED_CLEARANCE_D2 = ${JSON.stringify(clearanceD2)};
+const DATA_REFRESH_TS = '${REFRESH_TS}';
+loadPreInspect(PRELOADED_PREINSPECT, PRELOADED_TODAY_PI, PRELOADED_CLEARANCE_D1, PRELOADED_CLEARANCE_D2);
 // ──── END AUTO-EMBEDDED PREINSPECT
 `;
 
@@ -904,17 +982,27 @@ loadNonBillable(PRELOADED_NONBILLABLE);
   pages.forEach(function(fp) {
     if (!fs.existsSync(fp)) return;
     let content = fs.readFileSync(fp, 'utf8');
+
+    // Fix LF in tour split string
     const tourStart = content.indexOf('/* tour.js');
-    if (tourStart === -1) return;
-    const tour = content.slice(tourStart);
-    const idx  = tour.indexOf('var lines = step.body.split(');
-    if (idx === -1) return;
-    const argPos  = tourStart + idx + 29; // char right after split('
-    if (content.charCodeAt(argPos) === 10) { // LF = broken
-      content = content.slice(0, argPos) + BS + 'n' + content.slice(argPos + 1);
-      fs.writeFileSync(fp, content, 'utf8');
-      fixed++;
+    if (tourStart !== -1) {
+      const tour = content.slice(tourStart);
+      const idx  = tour.indexOf('var lines = step.body.split(');
+      if (idx !== -1) {
+        const argPos = tourStart + idx + 29;
+        if (content.charCodeAt(argPos) === 10) {
+          content = content.slice(0, argPos) + BS + 'n' + content.slice(argPos + 1);
+          fixed++;
+        }
+      }
     }
+
+    // Inject data-ts badge timestamp
+    const tsNew = '<div id="data-ts" class="data-ts-badge">Updated: ' + REFRESH_TS + '</div>';
+    content = content.replace(/<div id="data-ts"[^>]*>[\s\S]*?<\/div>/, tsNew);
+
+    fs.writeFileSync(fp, content, 'utf8');
   });
   if (fixed > 0) console.log('Tour split fix applied to ' + fixed + ' file(s).');
+  console.log('Last-updated badge stamped on all pages.');
 })();
