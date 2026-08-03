@@ -734,6 +734,21 @@ if (fs.existsSync(PREINSPECT_HTML)) {
     console.warn('  Superintendent contacts file not found — email lookup will be empty');
   }
 
+  // ── Load triage knowledge base rules ─────────────────────────────────────
+  let kbRules = [];
+  const KB_JSON = path.join(__dirname, '..', 'Projects', 'Pre Inspection Communication',
+    'pre-inspection-automation', 'knowledge-base.json');
+  if (fs.existsSync(KB_JSON)) {
+    try {
+      kbRules = JSON.parse(fs.readFileSync(KB_JSON, 'utf8')).issueRules || [];
+      console.log(`  Loaded ${kbRules.length} triage rules from knowledge base`);
+    } catch(e) {
+      console.warn('  Could not load knowledge base:', e.message);
+    }
+  } else {
+    console.warn('  Knowledge base not found — triage rules will be empty');
+  }
+
   let pihtml = fs.readFileSync(PREINSPECT_HTML, 'utf8');
   pihtml = pihtml.replace(/\/\/ ──── AUTO-EMBEDDED PREINSPECT[\s\S]*?\/\/ ──── END AUTO-EMBEDDED PREINSPECT\n?/g, '');
 
@@ -744,6 +759,7 @@ const PRELOADED_TODAY_PI   = ${JSON.stringify(todayPreinspect)};
 const PRELOADED_CLEARANCE_D1 = ${JSON.stringify(clearanceD1)};
 const PRELOADED_CLEARANCE_D2 = ${JSON.stringify(clearanceD2)};
 const SUPER_CONTACTS = ${JSON.stringify(superContacts)};
+const KB_RULES = ${JSON.stringify(kbRules)};
 const DATA_REFRESH_TS = '${REFRESH_TS}';
 loadPreInspect(PRELOADED_PREINSPECT, PRELOADED_TODAY_PI, PRELOADED_CLEARANCE_D1, PRELOADED_CLEARANCE_D2);
 // ──── END AUTO-EMBEDDED PREINSPECT
