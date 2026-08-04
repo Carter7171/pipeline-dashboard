@@ -444,8 +444,11 @@ if (fs.existsSync(PREINSPECT_HTML)) {
   }
   // Build inspection line map (lines with inspection-related descriptions)
   const inspLinesByOrder = {};
+  const slabOnlyOrders = new Set();
   if (fs.existsSync(path.join(__dirname, 'materials_data.json'))) {
     const matData = JSON.parse(fs.readFileSync(path.join(__dirname, 'materials_data.json'), 'utf8')).data || [];
+    const hasSlabInsp    = new Set();
+    const hasNonSlabInsp = new Set();
     matData.forEach(ln => {
       if (!ln.lineInstallDate || !ln.orderNumber) return;
       if (!/^pre\s+inspection|^pre\s*insp|slab.*insp/i.test(ln.itemNo || '')) return;
@@ -453,7 +456,10 @@ if (fs.existsSync(PREINSPECT_HTML)) {
       if (!isoDate) return;
       if (!inspLinesByOrder[ln.orderNumber]) inspLinesByOrder[ln.orderNumber] = [];
       inspLinesByOrder[ln.orderNumber].push(isoDate);
+      if (/slab/i.test(ln.itemNo)) hasSlabInsp.add(ln.orderNumber);
+      else hasNonSlabInsp.add(ln.orderNumber);
     });
+    hasSlabInsp.forEach(on => { if (!hasNonSlabInsp.has(on)) slabOnlyOrders.add(on); });
   }
 
   function getTrueInstallDate(orderNumber, fallback) {
@@ -674,6 +680,7 @@ if (fs.existsSync(PREINSPECT_HTML)) {
     if (!VALID_CT.has(order.customerType || '')) continue;
     if (!VALID_SO.test(order.serviceOffering || '')) continue;
     if (hasClearanceNote(order.notes)) continue;
+    if (slabOnlyOrders.has(order.orderNumber)) continue;
     const headerDate = order.scheduledInstallDate ? String(order.scheduledInstallDate).slice(0,10) : null;
     const trueDate   = getTrueInstallDate(order.orderNumber, headerDate);
     if (!trueDate) continue;
