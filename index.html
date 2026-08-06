@@ -280,7 +280,7 @@ body.sb-pinned{padding-left:224px}
     <div class="hdr-title">Monthly Projection &amp; Pipeline Dashboard</div>
   </div>
   <div class="hdr-r">
-    <div id="data-ts" class="data-ts-badge">Updated: Aug 6, 2026, 12:18 PM</div>
+    <div id="data-ts" class="data-ts-badge">Updated: Aug 6, 2026, 12:26 PM</div>
     <span id="lbl-updated" style="font-size:11px;color:var(--muted)"></span>
     <button class="btn btn-secondary btn-sm" onclick="showUpload()">Load Data</button>
     <button class="btn btn-success btn-sm" onclick="exportCSV()">Export CSV</button>
@@ -584,6 +584,7 @@ const S = {
   pendingRows: null,
   pendingHeaders: null,
   completions: new Set(),
+  prepCompletions: new Set(),
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -1292,7 +1293,7 @@ function applyFilters() {
   S.tableRows = sortRows(tableData);
 
   // Totals/charts/panels exclude jobs marked complete via the row checkbox
-  const dataForTotals = data.filter(j => !S.completions.has(j.orderNumber));
+  const dataForTotals = data.filter(j => !isComplete(j.orderNumber));
   updateKPIs(dataForTotals);
   updateProjectionPanels(dataForTotals);
   updateCharts(dataForTotals);
@@ -1587,8 +1588,8 @@ function sortRows(data) {
   return [...data].sort((a,b)=>{
     let va, vb;
     if (field === 'completed') {
-      va = S.completions.has(a.orderNumber) ? 1 : 0;
-      vb = S.completions.has(b.orderNumber) ? 1 : 0;
+      va = isComplete(a.orderNumber) ? 1 : 0;
+      vb = isComplete(b.orderNumber) ? 1 : 0;
       return dir==='asc' ? va-vb : vb-va;
     }
     va = a[field]; vb = b[field];
@@ -1632,11 +1633,11 @@ function renderTable() {
       const marginColor = (j.margin||0) < 0 ? 'color:var(--danger)' : (j.margin||0) < 20 ? 'color:var(--warning)' : 'color:var(--success)';
       const priceMismatch = j.startingPrice != null && j.revenue > 0 && Math.abs(j.startingPrice - j.revenue) > 0.01;
       const rowCls = [
-        S.completions.has(j.orderNumber) ? 'row-done' : '',
-        priceMismatch && !S.completions.has(j.orderNumber) ? 'row-mismatch' : ''
+        isComplete(j.orderNumber) ? 'row-done' : '',
+        priceMismatch && !isComplete(j.orderNumber) ? 'row-mismatch' : ''
       ].filter(Boolean).join(' ');
       return `<tr data-order="${j.orderNumber}"${rowCls ? ` class="${rowCls}"` : ''}>
-        <td class="done-cell"><input type="checkbox" class="done-cb"${S.completions.has(j.orderNumber)?' checked':''} onchange="toggleCompletion('${j.orderNumber}')"></td>
+        <td class="done-cell"><input type="checkbox" class="done-cb"${isComplete(j.orderNumber)?' checked':''} onchange="toggleCompletion('${j.orderNumber}')"></td>
         <td ondblclick="showNotes('${j.orderNumber}')" title="Double-click to view notes" style="cursor:pointer"><code style="font-size:11px;color:var(--muted)">${j.orderNumber||'—'}</code></td>
         <td>${j.lot||'—'}</td>
         <td>${j.tract||'—'}</td>
@@ -1729,19 +1730,24 @@ function handleFileSelect(e) { if(e.target.files[0]) loadFile(e.target.files[0])
 // ═══════════════════════════════════════════════════════════
 // COMPLETIONS (Firebase Firestore)
 // ═══════════════════════════════════════════════════════════
+function isComplete(orderNumber) {
+  return S.completions.has(orderNumber) || S.prepCompletions.has(orderNumber);
+}
+
 function toggleCompletion(orderNumber) {
   if (!window._db) return;
-  const ref = window._db.collection('completions').doc(orderNumber);
-  if (S.completions.has(orderNumber)) {
-    ref.delete();
-  } else {
-    ref.set({ completedAt: firebase.firestore.FieldValue.serverTimestamp() });
-  }
+  const job = S.rawData.find(j => j.orderNumber === orderNumber);
+  const isPrep = job && /^prep$/i.test((job.jobType || '').trim());
+  const col = isPrep ? 'prep_completions' : 'completions';
+  const done = isComplete(orderNumber);
+  const ref = window._db.collection(col).doc(orderNumber);
+  if (done) ref.delete();
+  else ref.set({ completedAt: firebase.firestore.FieldValue.serverTimestamp() });
 }
 
 function applyCompletions() {
   document.querySelectorAll('#table-body tr[data-order]').forEach(tr => {
-    const done = S.completions.has(tr.dataset.order);
+    const done = isComplete(tr.dataset.order);
     tr.classList.toggle('row-done', done);
     const cb = tr.querySelector('.done-cb');
     if (cb) cb.checked = done;
@@ -1821,8 +1827,13 @@ function toast(msg, type='info') {
       S.completions = new Set(snapshot.docs.map(d => d.id));
       applyCompletions();
     }, err => console.warn('Firestore error:', err));
+    db.collection('prep_completions').onSnapshot(snapshot => {
+      S.prepCompletions = new Set(snapshot.docs.map(d => d.id));
+      applyCompletions();
+    }, err => console.warn('Firestore prep error:', err));
   } catch(e) { console.warn('Firebase init failed:', e); }
 })();
+
 
 
 
