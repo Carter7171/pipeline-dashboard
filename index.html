@@ -280,7 +280,7 @@ body.sb-pinned{padding-left:224px}
     <div class="hdr-title">Monthly Projection &amp; Pipeline Dashboard</div>
   </div>
   <div class="hdr-r">
-    <div id="data-ts" class="data-ts-badge">Updated: Aug 6, 2026, 12:26 PM</div>
+    <div id="data-ts" class="data-ts-badge">Updated: Aug 6, 2026, 2:22 PM</div>
     <span id="lbl-updated" style="font-size:11px;color:var(--muted)"></span>
     <button class="btn btn-secondary btn-sm" onclick="showUpload()">Load Data</button>
     <button class="btn btn-success btn-sm" onclick="exportCSV()">Export CSV</button>
@@ -1833,6 +1833,7 @@ function toast(msg, type='info') {
     }, err => console.warn('Firestore prep error:', err));
   } catch(e) { console.warn('Firebase init failed:', e); }
 })();
+
 
 
 
