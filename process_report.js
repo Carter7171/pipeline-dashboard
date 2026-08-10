@@ -191,8 +191,8 @@ while (i < raw.length) {
 
       // "Order Totals:" — capture revenue/cost, switch to notes-collection mode
       if (/^Order\s*Totals\s*:/i.test(r0)) {
-        revenue = cellNum(r, 9);
-        cost    = cellNum(r, 10);
+        revenue = cellNum(r, 10);
+        cost    = cellNum(r, 11);
         totalsFound = true;
         continue;
       }
@@ -219,8 +219,8 @@ while (i < raw.length) {
               um:              cell(r, 9),
               price:           cellNum(r, 10),
               cost:            cellNum(r, 11),
-              status:          cell(r, 13) || 'None',
-              lineInstallDate: cell(r, 15),
+              status:          cell(r, 15) || 'None',
+              lineInstallDate: cell(r, 17),
             });
           }
           continue;
