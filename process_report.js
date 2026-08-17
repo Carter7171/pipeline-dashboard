@@ -347,6 +347,7 @@ while (i < raw.length) {
       materialLines.push({
         orderNumber,
         customerName,
+        customerType,
         store,
         installDate:   installIso,
         orderStatus:   currentStatus,
