@@ -474,8 +474,17 @@ function renderTable() {
   const end = Math.min(start + S.pageSize, total);
   const page = S.filtered.slice(start, end);
 
+  const qtyByUM = {};
+  S.filtered.forEach(ln => {
+    if (!ln.qty) return;
+    const u = ln.um || '—';
+    qtyByUM[u] = (qtyByUM[u] || 0) + ln.qty;
+  });
+  const qtyStr = Object.entries(qtyByUM).sort((a,b)=>b[1]-a[1])
+    .map(([u,v]) => `${fmtN(v)} ${u}`).join(' · ');
   document.getElementById('result-info').textContent =
-    `${total.toLocaleString()} matching line${total===1?'':'s'}`;
+    `${total.toLocaleString()} line${total===1?'':'s'}` +
+    (qtyStr ? `  ·  ${qtyStr}` : '');
 
   const tbody = document.getElementById('table-body');
   if (!page.length) {
