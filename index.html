@@ -1594,6 +1594,9 @@ function sortRows(data) {
     }
     va = a[field]; vb = b[field];
     if (va instanceof Date && vb instanceof Date) return dir==='asc'?va-vb:vb-va;
+    if (['revenue','grossProfit','margin','cost','startingPrice','startingMargin'].includes(field)) {
+      va = +va||0; vb = +vb||0; return dir==='asc'?va-vb:vb-va;
+    }
     if (!va) va=''; if (!vb) vb='';
     const cmp = String(va).toLowerCase().localeCompare(String(vb).toLowerCase());
     return dir==='asc'?cmp:-cmp;
